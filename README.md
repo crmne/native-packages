@@ -29,7 +29,7 @@ packaging/
   Gemfile.lock            # exact dependency revision
   project.yml             # release assets and template mappings
   nfpm.yml                # nFPM file mappings and target dependencies
-  repositories.yml        # optional downstream destinations
+  repositories.yml        # registry of downstream destinations
   arch/.../PKGBUILD.in     # only the native recipes this app needs
 ```
 
@@ -59,6 +59,8 @@ Requirements: Ruby 3.2 or later (CI tests 3.4 and 4.0), Bundler, Git, curl, GNU 
 `project.yml` declares the name, source repository, optional separate `release_repository`, release assets, templates and Linux binary packaging configuration. Stable tags use `vMAJOR.MINOR.PATCH`. `checksums.txt` must contain SHA256 entries for every binary asset. Source archives not present in that list can explicitly use `checksummed: false`; their computed hashes still enter generated recipes.
 
 Template values use `@VERSION@`, `@TAG@`, `@NAME@`, `@UPSTREAM@`, `@DATE@`, `@SOURCE_DATE_EPOCH@`, `@GIT_VERSION@`, and per-asset `@KEY_FILE@`, `@KEY_URL@`, `@KEY_SHA256@`. nFPM templates additionally receive `@ROOT@`, `@PAYLOAD@`, `@ARCH@` and `@TARGET@`. Values in `nfpm.yml` otherwise use nFPM's own schema. `binary.nfpm` may reference this file or contain the configuration directly.
+
+Include `repositories.yml` even when no downstream publication is needed; use `version: 1` and `repositories: {}` for an empty registry.
 
 Files, icons, desktop entries, services, runtime dependencies and platform exceptions remain explicit. ELF inspection checks architecture and raises a glibc dependency floor when needed. It cannot discover every library loaded dynamically or prove compatibility with every distro. Additional shared-library mappings can be supplied under `binary.libraries`; verify dependency names against the target distributions.
 
