@@ -1,0 +1,15 @@
+version: 1
+name: example-app
+repository: example/example-app
+assets:
+  AMD64:
+    file: example-app_@VERSION@_linux_amd64.tar.gz
+  ARM64:
+    file: example-app_@VERSION@_linux_arm64.tar.gz
+templates:
+  arch/example-app-bin/PKGBUILD: packaging/arch/example-app-bin/PKGBUILD.in
+binary:
+  architectures:
+    amd64: AMD64
+    arm64: ARM64
+  nfpm: packaging/nfpm.yml

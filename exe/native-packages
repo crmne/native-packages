@@ -1,0 +1,5 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "native_packages"
+NativePackages::CLI.run(Dir.pwd, ARGV)

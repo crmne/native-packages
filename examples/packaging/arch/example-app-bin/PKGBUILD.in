@@ -1,0 +1,18 @@
+pkgname=example-app-bin
+pkgver=@VERSION@
+pkgrel=@PKGREL@
+pkgdesc='Example native application'
+arch=('x86_64' 'aarch64')
+url='@UPSTREAM@'
+license=('MIT')
+provides=('example-app')
+conflicts=('example-app')
+source_x86_64=('@AMD64_URL@')
+source_aarch64=('@ARM64_URL@')
+sha256sums_x86_64=('@AMD64_SHA256@')
+sha256sums_aarch64=('@ARM64_SHA256@')
+
+package() {
+  install -Dm755 example-app "$pkgdir/usr/bin/example-app"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/example-app/LICENSE"
+}

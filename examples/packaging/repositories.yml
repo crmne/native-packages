@@ -1,0 +1,14 @@
+version: 1
+repositories:
+  aur-bin:
+    group: aur
+    url: https://aur.archlinux.org/example-app-bin.git
+    push_url: ssh://aur@aur.archlinux.org/example-app-bin.git
+    branch: master
+    package_path: .
+    files:
+      arch/example-app-bin/PKGBUILD: PKGBUILD
+      arch/example-app-bin/.SRCINFO: .SRCINFO
+    version_file: PKGBUILD
+    version_pattern: '^pkgver=(\S+)'
+    publish: push

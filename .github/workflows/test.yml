@@ -1,0 +1,38 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ['3.4', '4.0']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+          cache: false
+      - name: Install package inspection tools and nFPM
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libarchive-tools binutils
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
+      - name: Run unit and package integration tests
+        run: bundle exec ruby -Ilib -e 'Dir["test/*_test.rb"].sort.each { |path| require_relative path }'
+      - name: Verify standalone command and gem
+        run: |
+          bundle exec ruby -Ilib exe/native-packages --help
+          bundle exec ruby -Ilib exe/native-packages --version
+          gem build native-packages.gemspec
