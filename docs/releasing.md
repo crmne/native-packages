@@ -1,31 +1,33 @@
 # Releasing the native-packages gem
 
-The gem has no runtime gem dependencies. RubyGems publication is separate from the application-package publishing commands.
+This repository follows RubyLLM's publishing convention: publishing a GitHub release starts gem publication. Branch and tag pushes run checks without publishing a gem.
 
-## One-time account setup
+## Authentication
 
-Under the owner's RubyGems account, create a [pending trusted publisher](https://rubygems.org/profile/oidc/pending_trusted_publishers) with:
+Configure the repository secret `RUBYGEMS_AUTH_TOKEN`, using an existing RubyGems token with permission to push `native-packages`. GitHub passes it to RubyGems through `GEM_HOST_API_KEY`. GitHub Packages uses the workflow's built-in GitHub token.
 
-| Field | Value |
-| --- | --- |
-| Gem name | `native-packages` |
-| Repository owner | `crmne` |
-| Repository | `native-packages` |
-| Workflow filename | `release.yml` |
-| Environment | `rubygems` |
+Repository secrets are scoped to their repository. RubyLLM's existing secret does not automatically become available here, and GitHub cannot reveal its value for copying. Use the original token from your credential store or a new appropriately scoped token. A pending trusted publisher is not required for this method.
 
-No application repository or API token is needed. The first successful publication establishes gem ownership. See [RubyGems Trusted Publishing](https://guides.rubygems.org/trusted-publishing/).
+The secret can be set interactively without putting it in a shell command or chat:
+
+```sh
+gh secret set RUBYGEMS_AUTH_TOKEN --repo crmne/native-packages
+```
+
+[RubyGems Trusted Publishing](https://guides.rubygems.org/trusted-publishing/) is an alternative if the project adopts OIDC later; it is not the current release workflow.
 
 ## Release procedure
 
-Update the gemspec, `NativePackages::VERSION`, example/version references and changelog, then update the development lockfile. Run the tests and isolated gem-install check. Commit and push, then create and push an annotated `vMAJOR.MINOR.PATCH` tag.
+Update the gemspec, `NativePackages::VERSION`, example/version references and changelog, then update the development lockfile. Run tests and the isolated gem-install check. Commit and push the reviewed change to `main` and prepare release notes in a file.
 
-The release workflow runs the test workflow, including native package acceptance. It downloads the tested gem from the Ruby 4.0 job, checks its version against the tag, exchanges GitHub's OIDC identity for RubyGems publishing credentials, and publishes that artifact. It then attaches the gem to a GitHub release.
-
-Do not move existing tags or republish an existing gem version. If the one-time trusted publisher has not been configured, leave publication pending and retain the tested gem artifact. After configuring it, the workflow can be dispatched on the existing release tag:
+Create a GitHub release for that commit:
 
 ```sh
-gh workflow run release.yml --ref v0.2.0
+gh release create v0.2.0 --target main --title 'native-packages 0.2.0' --notes-file release-notes.md
 ```
 
-If RubyGems publication succeeded but a later GitHub step failed, attach the already-published gem to the existing tag manually; do not run `gem push` again for that version.
+Adding `--draft` permits review before publication and does not trigger the publisher. The tag must match the exact gem version and point to a commit on `main`. Set `--prerelease` only for a prerelease gem version.
+
+The release workflow verifies the tag, tested commit and prerelease setting, then runs the test workflow, including native package acceptance. It downloads the tested gem from the Ruby 4.0 job, publishes it to RubyGems and GitHub Packages, and attaches it to the GitHub release. It does not rebuild a different artifact after the tests.
+
+If authentication is missing, leave the tested gem and release draft available until the secret is configured. Failed release jobs can be rerun after configuration; already-published gem versions are not overwritten. Never move an existing release tag to retry publication.

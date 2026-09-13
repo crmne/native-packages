@@ -5,6 +5,7 @@ $cert = New-SelfSignedCertificate -Type Custom -Subject 'CN=NativePackagesTest' 
 $password = ConvertTo-SecureString 'ephemeral-ci-fixture' -AsPlainText -Force
 $env:MSIX_CERT_PATH = Join-Path $root 'test.pfx'
 $env:NFPM_MSIX_PASSPHRASE = 'ephemeral-ci-fixture'
+$env:MSIX_SIGN_SCRIPT = Join-Path $PSScriptRoot 'sign_msix.ps1'
 Export-PfxCertificate -Cert $cert -FilePath $env:MSIX_CERT_PATH -Password $password | Out-Null
 $publicCert = Join-Path $root 'test.cer'
 Export-Certificate -Cert $cert -FilePath $publicCert | Out-Null

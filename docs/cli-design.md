@@ -1,6 +1,6 @@
 # Proposal: an installable CLI with one project configuration
 
-Status: accepted, 2026-09-13. The v0.2 implementation follows this design. See the current [configuration reference](configuration.md) and [release setup](releasing.md) for the implemented interface and publication requirements. This document records the original design; it does not describe v0.1.0.
+Status: accepted, 2026-09-13. Publishing was subsequently aligned with RubyLLM: GitHub release publication triggers the workflow, using `RUBYGEMS_AUTH_TOKEN`. The original Trusted Publishing proposal below is superseded by that decision. The v0.2 implementation follows this design. See the current [configuration reference](configuration.md) and [release setup](releasing.md) for the implemented interface and publication requirements. This document records the original design; it does not describe v0.1.0.
 
 The proposed interface is `gem install native-packages`, `native-packages init`, and `native-packages build`. A project normally needs one `native-packages.yaml` file. The tool should expose every nFPM packager and use the application's declared inputs to decide what to build.
 

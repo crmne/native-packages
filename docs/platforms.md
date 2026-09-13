@@ -9,7 +9,7 @@ All seven nFPM 2.47.0 packagers are exposed by the v0.2 CLI. Each target explici
 | Arch package | nFPM `archlinux`, native filename, ELF inspection | Arch-compatible files and explicit dependencies |
 | Alpine APK | nFPM `apk`, ELF/libc checks | Suitable musl/static inputs and Alpine dependencies |
 | IPK | nFPM `ipk`, ELF checks, explicit ABI label | Device/distribution ABI, architecture and dependencies |
-| MSIX | nFPM `msix`, PE architecture checks, native signing configuration | Windows executables/DLLs, application identity, assets, capabilities and signing certificate |
+| MSIX | nFPM `msix`, PE architecture checks, `after_package` hook for native signing | Windows executables/DLLs, application identity, assets, capabilities and signing certificate |
 | SRPM | nFPM `srpm`, source/spec input validation | A correct spec and sources, native rebuild testing |
 | AUR | Template rendering, `.SRCINFO`, staged Git publication | Native PKGBUILD source/bin/git variants and build checks |
 | Homebrew | Hash/render supplied formulae or casks and publish a tap | macOS bundles, signing/notarization, native recipe logic |
@@ -18,6 +18,8 @@ All seven nFPM 2.47.0 packagers are exposed by the v0.2 CLI. Each target explici
 | Other Windows installers | No installer adapter beyond MSIX | Existing Inno Setup/NSIS/WiX and WinGet/Scoop integrations |
 
 nFPM ends at constructing the package file, including its supported signing operations. It does not compile the application or host package indexes. [nFPM configuration](https://nfpm.goreleaser.com/docs/configuration/)
+
+The Windows acceptance test uses Windows SDK SignTool through `after_package`. Windows rejected nFPM 2.47.0's built-in signature with `0x80096010` in the initial acceptance run; do not assume its signing configuration alone produces a Windows-installable result.
 
 The CLI uses known ELF machine/class/endianness mappings and PE machine mappings. Unsupported inspection architectures fail explicitly. Data and source targets do not require an executable. The small DEB/RPM dependency table can be extended in configuration; other formats require explicit runtime dependencies. These checks do not detect every dynamically loaded library or establish compatibility with every version of a distribution.
 

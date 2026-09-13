@@ -114,4 +114,4 @@ ruby test/gem_install.rb native-packages-0.2.0.gem
 
 Tests build real packages, inspect their payloads and exercise repository publication against local Git fixtures. CI additionally runs disposable Linux install/upgrade/remove checks, SRPM rebuilds and Windows MSIX acceptance. Runtime build manifests report installation as `not-tested`: CI fixture coverage is not a substitute for testing each application's packages.
 
-The [design document](docs/cli-design.md) records the agreed direction. [Gem release setup](docs/releasing.md) explains the one-time RubyGems account configuration and tagged release workflow.
+The [design document](docs/cli-design.md) records the agreed direction. [Gem release setup](docs/releasing.md) explains the RubyLLM-style token setup and GitHub release workflow.

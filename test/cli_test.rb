@@ -168,6 +168,53 @@ class NativePackagesCLITest < Minitest::Test
     assert_equal "1.2.3\n", (@root / "hook-count").read
   end
 
+  def test_after_package_runs_before_recording_output_hashes
+    need_tools "nfpm"
+    target = @data["targets"]["linux-amd64"]
+    target["formats"] = ["deb"]
+    target["after_package"] = [RbConfig.ruby, "-e", "File.open(ARGV.fetch(0), 'ab') { |file| file.write('hook-marker') }", "@PACKAGE@"]
+    configure
+    output = build
+    record = @build.verify(output).fetch("packages").first
+    package = output / record.fetch("path")
+    assert package.binread.end_with?("hook-marker")
+    assert_equal @build.sha256(package), record.fetch("sha256")
+  end
+
+  def test_release_inputs_require_checksums_and_skip_source_build_hooks
+    need_tools "nfpm"
+    target = @data["targets"]["linux-amd64"]
+    target["formats"] = ["deb"]
+    target["input"] = { "release_asset" => "sample.txt", "kind" => "file" }
+    target["before_build"] = [RbConfig.ruby, "-e", "abort 'source hook must not run in release mode'"]
+    @data["release"] = { "repository" => "example/sample-app" }
+    configure
+    cache = @build.release_cache(@config.tokens("1.2.3"))
+    cache.mkpath
+    (cache / "sample.txt").write("release input\n")
+    (cache / "checksums.txt").write("#{'0' * 64}  sample.txt\n")
+    assert_includes assert_raises(NativePackages::Error) { build(release: "v1.2.3") }.message, "checksum mismatch"
+    (cache / "checksums.txt").write("#{@build.sha256(cache / 'sample.txt')}  sample.txt\n")
+    assert_equal 1, @build.verify(build(release: "v1.2.3")).fetch("packages").length
+  end
+
+  def test_migration_preserves_native_templates_and_existing_files
+    (@root / "native-packages.yaml").delete
+    (@root / "packaging").mkpath
+    (@root / "packaging/recipe.in").write("version=@VERSION@\n")
+    (@root / "packaging/project.yml").write(YAML.dump("version" => 1, "name" => "sample-app", "repository" => "example/sample-app",
+      "assets" => {}, "templates" => { "recipe" => "packaging/recipe.in" }))
+    (@root / "packaging/repositories.yml").write(YAML.dump("version" => 1, "repositories" => {}))
+    dry, = capture_io { NativePackages::Scaffold.new(@root).migrate(dry_run: true) }
+    assert_equal "sample-app", YAML.safe_load(dry).fetch("nfpm").fetch("name")
+    refute_path_exists @root / "native-packages.yaml"
+    capture_io { NativePackages::Scaffold.new(@root).migrate }
+    config = NativePackages::Configuration.new(@root / "native-packages.yaml")
+    assert config.validate
+    assert_path_exists @root / "packaging/project.yml"
+    assert_equal({ "recipe" => "packaging/recipe.in" }, config.data.fetch("templates"))
+  end
+
   def test_srpm_contains_real_sources_and_spec
     need_tools "nfpm", "bsdtar"
     (@root / "payload/sample-app.spec").write(<<~SPEC)

@@ -8,7 +8,7 @@
 - Check ELF/PE architecture, Linux libc and linked libraries; retain native nFPM configuration and filenames.
 - Verify build manifests and complete target sets before release uploads or downstream publication.
 - Add isolated gem installation checks, native Linux package acceptance and Windows MSIX acceptance workflows.
-- Prepare RubyGems Trusted Publishing and preserve the existing v0.1 commands and workflow path.
+- Follow RubyLLM’s RubyGems token and GitHub release publishing convention and preserve the existing v0.1 commands and workflow path.
 
 ## 0.1.0
 

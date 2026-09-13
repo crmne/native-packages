@@ -1,27 +1,53 @@
 name: Release gem
 
 on:
-  push:
-    tags: ['v*']
-  workflow_dispatch:
+  release:
+    types: [published]
 
 permissions:
   contents: read
 
+concurrency:
+  group: gem-release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '4.0'
+      - name: Verify release tag, commit and version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          version=$(ruby -Ilib -r native_packages -e 'puts NativePackages::VERSION')
+          test "$RELEASE_TAG" = "v$version"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}")"
+          git merge-base --is-ancestor HEAD origin/main
+          prerelease=$(ruby -rrubygems/version -e 'puts Gem::Version.new(ARGV.fetch(0)).prerelease?' "$version")
+          test "$prerelease" = "$RELEASE_PRERELEASE"
+
   checks:
+    needs: validate
     uses: ./.github/workflows/test.yml
 
   publish:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: checks
+    needs: [validate, checks]
     runs-on: ubuntu-latest
-    environment: rubygems
     permissions:
       contents: write
-      id-token: write
+      packages: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '4.0'
@@ -29,21 +55,35 @@ jobs:
         with:
           name: gem-ruby-4.0
           path: pkg
-      - name: Verify tag and tested gem
+      - name: Verify tested gem
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           ruby -rrubygems/package -e 'p = Dir["pkg/*.gem"].fetch(0); s = Gem::Package.new(p).spec; abort "tag/version mismatch" unless ENV.fetch("RELEASE_TAG") == "v#{s.version}"'
-      - uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
-      - name: Publish tested gem
-        run: gem push pkg/*.gem
-      - name: Attach gem to GitHub release
+      - name: Publish to RubyGems
+        env:
+          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_AUTH_TOKEN }}
+        run: |
+          test -n "$GEM_HOST_API_KEY" || { echo 'Configure RUBYGEMS_AUTH_TOKEN for this repository, as in RubyLLM.' >&2; exit 1; }
+          output=$(gem push --host https://rubygems.org pkg/*.gem 2>&1) || {
+            echo "$output"
+            if echo "$output" | grep -qi 'Repushing of gem versions is not allowed'; then exit 0; fi
+            exit 1
+          }
+          echo "$output"
+      - name: Publish to GitHub Packages
+        env:
+          GEM_HOST_API_KEY: Bearer ${{ github.token }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          output=$(gem push --host "https://rubygems.pkg.github.com/$OWNER" pkg/*.gem 2>&1) || {
+            echo "$output"
+            if echo "$output" | grep -qi 'already been pushed'; then exit 0; fi
+            exit 1
+          }
+          echo "$output"
+      - name: Attach tested gem to GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" pkg/*.gem --clobber
-          else
-            gh release create "$RELEASE_TAG" pkg/*.gem --title "native-packages $RELEASE_TAG" --notes-file CHANGELOG.md
-          fi
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$RELEASE_TAG" pkg/*.gem --clobber

@@ -33,6 +33,8 @@ before_build: [./scripts/build-linux.sh, '@ARCH@']
 
 It runs once per selected target in the configuration directory, before copying local inputs. `NATIVE_PACKAGES_TARGET` and `NATIVE_PACKAGES_VERSION` are also set. It is skipped in release mode and never executed by `validate`, `doctor` or a dry run. A shell script remains responsible for complex build operations.
 
+`after_package` is an optional argument array invoked once per generated package, before output hashes are recorded. It additionally receives `@PACKAGE@` and `@FORMAT@`. Use it for existing native signing tools, for example a Windows SDK SignTool script. It runs in local and release mode and must preserve the output filename and file set. The MSIX acceptance test uses SignTool because Windows rejected the signature produced by nFPM 2.47.0's built-in signer in that test.
+
 ## Tokens and additional assets
 
 Strings can contain `@NAME@`, `@VERSION@`, `@TAG@`, `@DATE@`, `@SOURCE_DATE_EPOCH@`, `@ROOT@`, `@UPSTREAM@` and `@GIT_VERSION@`. Target definitions additionally receive `@ARCH@`, `@PLATFORM@`, `@TARGET_ID@`, `@TARGET@` and `@PAYLOAD@`. `TARGET` is the explicit `compiler_target` or, if omitted, the target ID. `PAYLOAD` is the extracted/copied input directory. Recipe templates also receive `@PKGREL@`.

@@ -72,7 +72,7 @@ module NativePackages
       metadata = tokens("9.8.7", epoch: 1_767_225_600)
       targets.each do |id, target|
         raise Error, "invalid target name: #{id}" unless /\A[a-z0-9][a-z0-9-]*\z/.match?(id)
-        unknown = target.keys - %w[platform arch libc abi kind formats input nfpm before_build compiler_target]
+        unknown = target.keys - %w[platform arch libc abi kind formats input nfpm before_build after_package compiler_target]
         raise Error, "targets.#{id}: unknown fields #{unknown.join(', ')}" unless unknown.empty?
         formats = target.fetch("formats")
         unless formats.is_a?(Array) && !formats.empty? && formats.uniq == formats && (formats - FORMATS).empty?
@@ -92,8 +92,10 @@ module NativePackages
         input = mapping(target.fetch("input"), "#{id}.input")
         raise Error, "#{id}.input: declare local or release_asset" unless input["local"] || input["release_asset"]
         raise Error, "#{id}.input.kind: use file, directory or archive" unless %w[file directory archive].include?(input.fetch("kind", "archive"))
-        hook = target["before_build"]
-        raise Error, "#{id}.before_build: use a nonempty array of command arguments" if hook && (!hook.is_a?(Array) || hook.empty? || !hook.all? { |part| part.is_a?(String) })
+        %w[before_build after_package].each do |key|
+          hook = target[key]
+          raise Error, "#{id}.#{key}: use a nonempty array of command arguments" if hook && (!hook.is_a?(Array) || hook.empty? || !hook.all? { |part| part.is_a?(String) })
+        end
         rendered = render_tree(package(target), target_tokens(metadata, id, target, "/payload"))
         raise Error, "#{id}: nfpm.contents must be an array" unless rendered["contents"].is_a?(Array)
         %w[maintainer description license].each do |key|
@@ -109,7 +111,8 @@ module NativePackages
           raise Error, "#{id}: conflicting nfpm.#{key}; declare it once" if rendered.key?(key) && rendered[key] != expected
         end
         render_tree(input, target_tokens(metadata, id, target, "/payload"))
-        render_tree(hook, target_tokens(metadata, id, target, "/payload")) if hook
+        render_tree(target["before_build"], target_tokens(metadata, id, target, "/payload")) if target["before_build"]
+        render_tree(target["after_package"], target_tokens(metadata, id, target, "/payload").merge("PACKAGE" => "/output/package", "FORMAT" => formats.first)) if target["after_package"]
       end
       data.fetch("templates").each do |destination, source|
         relative_path(render(destination, metadata))

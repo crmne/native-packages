@@ -74,7 +74,7 @@ module NativePackages
       output = Pathname.new(output || root / "dist/packages" / number).expand_path(root)
       if dry_run
         puts JSON.pretty_generate("version" => number, "mode" => release ? "release" : "local", "output" => output.to_s,
-          "targets" => selected.transform_values { |target| target.slice("formats", "platform", "arch", "input", "before_build") })
+          "targets" => selected.transform_values { |target| target.slice("formats", "platform", "arch", "input", "before_build", "after_package") })
         return
       end
       raise Error, "output exists: #{output}; choose a fresh --output" if output.exist?
@@ -115,6 +115,11 @@ module NativePackages
                 env: { "SOURCE_DATE_EPOCH" => info.fetch("SOURCE_DATE_EPOCH").to_s }
               packages = files(destination)
               raise Error, "nFPM did not create exactly one #{format} package" unless packages.length == 1
+              if target["after_package"]
+                signing = configuration.target_tokens(info, id, target, payload).merge("PACKAGE" => packages.first.to_s, "FORMAT" => format)
+                run(*render_tree(target.fetch("after_package"), signing), env: { "NATIVE_PACKAGES_TARGET" => id, "NATIVE_PACKAGES_VERSION" => number })
+                raise Error, "after_package must preserve the package path and output set" unless files(destination) == packages
+              end
               records << { "target" => id, "format" => format, "path" => packages.first.relative_path_from(staging).to_s,
                 "sha256" => sha256(packages.first), "validation" => inspection }
             end

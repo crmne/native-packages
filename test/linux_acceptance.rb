@@ -26,7 +26,9 @@ formats.each do |format|
   else
     image, install, remove = commands.fetch(format)
     script = <<~SH
-      mkdir -p /var/lock /var/run /tmp
+      mkdir -p /run/lock /tmp
+      test -d /var/lock || mkdir -p /var/lock
+      test -d /var/run || mkdir -p /var/run
       #{install} /packages/1.2.3/packages/linux-amd64/#{format}/*
       test "$(native-packages-smoke)" = native-packages-ok
       #{install} /packages/1.2.4/packages/linux-amd64/#{format}/*

@@ -25,10 +25,10 @@ if windows
   data["nfpm"]["msix"] = { "publisher" => "CN=NativePackagesTest", "properties" => { "logo" => "logo.png" },
     "applications" => [{ "id" => "App", "executable" => "app.exe", "visual_elements" => { "display_name" => "Packaging Smoke Test",
       "description" => "Packaging Smoke Test", "square150x150_logo" => "logo.png", "square44x44_logo" => "small.png" } }] }
-  if ENV["MSIX_CERT_PATH"]
-    data["nfpm"]["msix"]["signature"] = { "pfx_file" => ENV.fetch("MSIX_CERT_PATH") }
-  end
   data["targets"]["windows-amd64"] = { "platform" => "windows", "arch" => "amd64", "formats" => ["msix"], "input" => { "local" => "payload", "kind" => "directory" } }
+  if ENV["MSIX_SIGN_SCRIPT"]
+    data["targets"]["windows-amd64"]["after_package"] = ["pwsh", "-NoProfile", "-File", ENV.fetch("MSIX_SIGN_SCRIPT"), "@PACKAGE@"]
+  end
 else
   (payload / "main.c").write("#include <stdio.h>\nint main(void) { puts(\"native-packages-ok\"); return 0; }\n")
   runner.capture("cc", "-static", payload / "main.c", "-o", payload / name)
