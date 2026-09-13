@@ -83,7 +83,7 @@ jobs:
     permissions:
       contents: write
     concurrency:
-      group: native-packages-${{ github.workflow }}-${{ github.ref }}
+      group: native-packages-${{ github.workflow }}-${{ github.ref }}-${{ needs.configuration.outputs.config }}
       cancel-in-progress: false
     env:
       CONFIG: ${{ needs.configuration.outputs.config }}

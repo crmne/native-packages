@@ -116,6 +116,8 @@ packaging:
 
 Pin the corresponding commit SHA for an immutable workflow reference. With no version, the workflow validates configuration only. With a version, it installs the configured gem and nFPM, builds packages and uploads an Actions artifact. `publish: true` attaches packages to the existing release.
 
+Separate configurations have independent concurrency groups. A workflow can validate its stable, alpha and macOS configurations without one queued call cancelling another. The released `v0.5.0` workflow predates this fix; serialize multiple calls with `needs` when using that tag or its commit.
+
 To consume an Actions artifact instead, set `source-artifact` and, if necessary, `source-directory` (default `dist`). Its files must match the local input paths in the configuration. This workflow packages on Linux, including MSIX creation from Windows binaries; native application builds and platform-specific signing jobs can use the CLI separately.
 
 AUR publication additionally requires `PUBLISH_AUR=true`, `AUR_SSH_KEY` and `AUR_KNOWN_HOSTS`. Homebrew publication requires `PUBLISH_HOMEBREW=true` and `HOMEBREW_TAP_GITHUB_TOKEN`. Keep existing GoReleaser publishers for destinations they already own.
