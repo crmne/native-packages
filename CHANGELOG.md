@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 (unreleased)
+## 0.3.0 (2026-09-13)
 
 - Add opt-in alpha, beta and release-candidate package versions for DEB/RPM and
   native DMG/Inno targets. Keep legacy/default versions stable-only, and require
