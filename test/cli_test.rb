@@ -53,6 +53,31 @@ class NativePackagesCLITest < Minitest::Test
     assert_includes capture_io { NativePackages::CLI.run(@root, ["--help"]) }.first, "build"
   end
 
+  def test_aggregation_accepts_identical_configuration_from_different_checkout_roots
+    need_tools("nfpm", "bsdtar", "readelf")
+    @data["targets"]["linux-amd64"]["formats"] = ["deb"]
+    @data["targets"]["linux-arm64"] = Marshal.load(Marshal.dump(@data["targets"].fetch("linux-amd64")))
+    @data["targets"]["linux-arm64"]["arch"] = "arm64"
+    configure
+    first = @root / "first"
+    build(ids: ["linux-amd64"], output: first)
+    Dir.mktmpdir("native-packages-other-checkout-") do |directory|
+      second_root = Pathname.new(directory)
+      FileUtils.cp(@root / "native-packages.yaml", second_root)
+      FileUtils.cp_r(@root / "payload", second_root / "payload")
+      other = NativePackages::Build.new(NativePackages::Configuration.new(second_root / "native-packages.yaml"))
+      second = second_root / "second"
+      capture_io { other.run_build(value: "1.2.3", ids: ["linux-arm64"], output: second) }
+      combined = @root / "combined"
+      capture_io { @build.aggregate([first, second], output: combined) }
+      manifest = @build.verify(combined)
+      assert_equal %w[linux-amd64 linux-arm64], manifest.fetch("targets").keys.sort
+      assert_equal 2, manifest.fetch("packages").length
+      metadata = JSON.parse((combined / "recipes/release.json").read)
+      refute metadata.key?("ROOT"), "checkout paths are build inputs, not shared release metadata"
+    end
+  end
+
   def test_validation_is_offline_and_never_runs_build_commands
     @data["targets"]["linux-amd64"]["before_build"] = ["ruby", "-e", "File.write('unexpected', 'ran')"]
     @data["targets"]["linux-amd64"]["input"]["local"] = "missing-input"

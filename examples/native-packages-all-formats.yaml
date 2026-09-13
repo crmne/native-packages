@@ -1,7 +1,7 @@
 # Supply the listed build outputs before running this example.
 schema: 1
 tool:
-  version: '0.3.0'
+  version: '0.3.1'
   nfpm: '2.47.0'
 nfpm:
   name: example-app

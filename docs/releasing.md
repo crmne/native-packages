@@ -23,7 +23,7 @@ Update the gemspec, `NativePackages::VERSION`, example/version references and ch
 Create a GitHub release for that commit:
 
 ```sh
-gh release create v0.3.0 --target main --title 'native-packages 0.3.0' --notes-file release-notes.md
+gh release create v0.3.1 --target main --title 'native-packages 0.3.1' --notes-file release-notes.md
 ```
 
 Adding `--draft` permits review before publication and does not trigger the publisher. The tag must match the exact gem version and point to a commit on `main`. Set `--prerelease` only for a prerelease gem version.

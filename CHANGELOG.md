@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1 (2026-09-13)
+
+- Keep checkout-local `ROOT` tokens out of shared release metadata so packages
+  built in different directories or operating systems can be aggregated.
+- Add a regression that builds two targets in separate checkouts and verifies
+  their complete combined manifest.
+
 ## 0.3.0 (2026-09-13)
 
 - Add opt-in alpha, beta and release-candidate package versions for DEB/RPM and

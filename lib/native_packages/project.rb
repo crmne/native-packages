@@ -100,7 +100,10 @@ module NativePackages
       Pathname.glob(output / "arch/*/PKGBUILD").each do |recipe|
         write(recipe.dirname / ".SRCINFO", srcinfo(recipe.dirname))
       end
-      write(output / "release.json", JSON.pretty_generate(metadata.sort.to_h) + "\n")
+      # ROOT resolves local build inputs and templates. Persisting it makes
+      # otherwise identical target builds conflict when runners use different
+      # checkout directories (and exposes an irrelevant machine-local path).
+      write(output / "release.json", JSON.pretty_generate(metadata.reject { |key, _| key == "ROOT" }.sort.to_h) + "\n")
     end
 
     def check(output, prerelease: false)
