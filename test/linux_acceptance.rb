@@ -40,7 +40,8 @@ formats.each do |format|
   end
   output, status = Open3.capture2e("docker", "run", "--rm", "-v", "#{root}/dist/packages:/packages:ro", image, "sh", "-ec", script)
   if status.success?
-    puts "#{format}: native install/upgrade/remove#{format == 'srpm' ? ' and source rebuild' : ''} passed"
+    checks = format == "srpm" ? "source rebuild and native install/remove" : "native install/upgrade/remove"
+    puts "#{format}: #{checks} passed"
   else
     warn "#{format} acceptance failed:\n#{output}"
     failures << format

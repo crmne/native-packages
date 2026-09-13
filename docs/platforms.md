@@ -27,4 +27,6 @@ The CLI uses known ELF machine/class/endianness mappings and PE machine mappings
 
 CI builds fixtures in every format and defines native Linux install/upgrade/remove checks, an SRPM rebuild and a signed MSIX installation on Windows. A build manifest reports `installation: not-tested` unless such testing was actually performed for that application output. Fixture coverage is separate from app-specific validation.
 
+The [acceptance run for v0.2 development](https://github.com/crmne/native-packages/actions/runs/34748247545) passed on Debian trixie, Fedora 41, Arch's base image, Alpine 3.24.0, OpenWrt 24.10.8 and the GitHub Windows runner. Linux binary tests use a small static executable; the SRPM rebuilds its C source, and the Windows package contains a compiled Windows executable. These fixtures test package construction and lifecycle, not the compatibility of every application's GUI or device integrations.
+
 Version 0.1 and its pinned workflow retain their DEB/RPM behavior. The new formats are enabled through the v0.2 single-file configuration and `build` command. Existing v0.1 application configurations do not silently gain more output formats.

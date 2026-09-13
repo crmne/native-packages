@@ -15,7 +15,7 @@ module NativePackages
     end
 
     def nfpm_version
-      raise Error, "install nFPM #{Configuration::NFPM_VERSION}; https://nfpm.goreleaser.com/install/" unless available?("nfpm")
+      raise Error, "install nFPM #{Configuration::NFPM_VERSION}; https://nfpm.goreleaser.com/docs/install/" unless available?("nfpm")
       version = capture("nfpm", "--version")[/(?:GitVersion|Version):\s*v?(\d+\.\d+\.\d+)/, 1]
       if !version && available?("go")
         executable = ENV.fetch("PATH").split(File::PATH_SEPARATOR).map { |path| File.join(path, Gem.win_platform? ? "nfpm.exe" : "nfpm") }.find { |path| File.file?(path) }
