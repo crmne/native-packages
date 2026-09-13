@@ -97,7 +97,15 @@ versions.each_with_index do |version, index|
     runner.run("codesign", "--force", "--sign", "-", payload)
     runner.run("codesign", "--verify", "--strict", payload)
   end
-  output = builder.run_build(value: version)
+  # Cover the existing preview path and the opt-in deferred path with real
+  # native packages, then install and remove the exact verified artifacts.
+  deferred = version == versions.last
+  output = builder.run_build(value: version, defer_recipes: deferred)
+  if deferred
+    complete = root / "finalized" / version
+    builder.aggregate([output], output: complete, finalize_recipes: true)
+    output = complete
+  end
   manifest = builder.verify(output)
   packages[version] = { "path" => output / manifest.fetch("packages").first.fetch("path"), "binary_sha256" => runner.sha256(binary) }
 end
