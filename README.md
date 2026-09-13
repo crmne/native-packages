@@ -107,7 +107,7 @@ packaging:
   needs: release
   permissions:
     contents: write
-  uses: crmne/native-packages/.github/workflows/package.yml@v0.5.0
+  uses: crmne/native-packages/.github/workflows/package.yml@v0.5.1
   with:
     version: ${{ github.ref_name }}
     publish: true
@@ -135,7 +135,7 @@ Migration combines `packaging/project.yml`, its nFPM definition and repository r
 bundle install
 bundle exec ruby -Ilib -e 'Dir["test/*_test.rb"].sort.each { |path| require_relative path }'
 gem build native-packages.gemspec
-ruby test/gem_install.rb native-packages-0.5.0.gem
+ruby test/gem_install.rb native-packages-0.5.1.gem
 ```
 
 Tests build real packages, inspect their payloads and exercise repository publication against local Git fixtures. CI additionally runs disposable Linux install/upgrade/remove checks, SRPM rebuilds and Windows MSIX acceptance. Runtime build manifests report installation as `not-tested`: CI fixture coverage is not a substitute for testing each application's packages.

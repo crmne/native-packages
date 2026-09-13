@@ -5,22 +5,31 @@ require "native_packages"
 
 class MacosSigningTest < Minitest::Test
   class FixtureSigner < NativePackages::MacosSigning
-    attr_reader :commands
+    attr_reader :commands, :keychains
     attr_accessor :notary_status, :fail_at
 
     def initialize(root, credentials)
       super
       @commands = []
+      @keychains = ["/Users/fixture/Library/Keychains/login keychain-db", "/Library/Keychains/System.keychain"]
       @notary_status = "Accepted"
     end
 
     def available?(_name) = true
+    def signing_lock_path = @root / "macos-signing.lock"
 
     def execute(*arguments)
       @commands << arguments.map(&:to_s)
       raise NativePackages::Error, "fixture failure" if @fail_at && arguments.take(@fail_at.length) == @fail_at
       File.write(arguments.last, "keychain") if arguments.take(2) == %w[security create-keychain]
-      File.delete(arguments.last) if arguments.take(2) == %w[security delete-keychain]
+      if arguments.take(2) == %w[security delete-keychain]
+        File.delete(arguments.last)
+        @keychains.delete(arguments.last.to_s)
+      end
+      if arguments.take(2) == %w[security list-keychains]
+        @keychains = arguments.drop(arguments.index("-s") + 1).map(&:to_s) if arguments.include?("-s")
+        return @keychains.map(&:dump).join("\n")
+      end
       return %Q{1) hash "#{@credentials.fetch('APPLE_SIGNING_IDENTITY')}"} if arguments.take(2) == %w[security find-identity]
       return JSON.generate("status" => @notary_status, "id" => "fixture-submission") if arguments.take(3) == %w[xcrun notarytool submit]
       ""
@@ -92,10 +101,54 @@ class MacosSigningTest < Minitest::Test
       app / "Contents/Frameworks/Nested.framework", app / "Contents/MacOS/fixture", app], signed.map { |cmd| Pathname.new(cmd.last).cleanpath }
     assert signed.all? { |cmd| cmd.any? { |arg| arg.start_with?("--preserve-metadata=") && arg.include?("entitlements") } }
     refute signed.any? { |cmd| cmd.include?("--deep") }
-    refute @signer.commands.any? { |cmd| cmd.take(2) == %w[security list-keychains] }
+    refute @signer.commands.any? { |cmd| cmd.take(2) == %w[security default-keychain] }
     keychain = @signer.commands.find { |cmd| cmd.take(2) == %w[security create-keychain] }.last
     refute_path_exists keychain
     assert_equal original, NativePackages::NativeRecipe.new(@root).digest(app)
+  end
+
+  def test_clean_runner_identity_is_searchable_and_cleanup_preserves_other_keychains
+    [false, true].each do |fail_signing|
+      signer = FixtureSigner.new(@root, @credentials)
+      existing = signer.keychains.dup
+      concurrently_added = "/Users/fixture/Library/Keychains/another-job.keychain-db"
+      task = lambda do
+        signer.with_identity do |active|
+          owned = signer.commands.find { |cmd| cmd.take(2) == %w[security create-keychain] }.last
+          assert_equal existing + [owned], signer.keychains,
+            "codesign requires the imported keychain in the user search list even with --keychain"
+          signer.keychains << concurrently_added
+          raise NativePackages::Error, "signing failed" if fail_signing
+          active.sign_payload(payload)
+        end
+      end
+      fail_signing ? assert_raises(NativePackages::Error, &task) : task.call
+      assert_equal existing + [concurrently_added], signer.keychains,
+        "cleanup must remove only its own keychain, including after signing failure"
+      assert_equal %w[security delete-keychain], signer.commands.last.take(2)
+      refute signer.commands.any? { |cmd| cmd.take(2) == %w[security default-keychain] }
+    end
+  end
+
+  def test_signing_holds_an_exclusive_user_lock_and_releases_it_after_failure
+    [false, true].each do |fail_signing|
+      task = lambda do
+        @signer.with_identity do
+          File.open(@signer.signing_lock_path, File::RDWR | File::CREAT, 0o600) do |contender|
+            assert_equal false, contender.flock(File::LOCK_EX | File::LOCK_NB),
+              "another signing call must wait while the shared keychain search list is in use"
+          end
+          raise NativePackages::Error, "signing failed" if fail_signing
+        end
+      end
+      fail_signing ? assert_raises(NativePackages::Error, &task) : task.call
+      File.open(@signer.signing_lock_path, File::RDWR) do |contender|
+        assert_equal 0, contender.flock(File::LOCK_EX | File::LOCK_NB)
+      end
+    end
+    first = NativePackages::MacosSigning.new(@root, @credentials)
+    second = NativePackages::MacosSigning.new(@root / "another-project", @credentials)
+    assert_equal first.send(:signing_lock_path), second.send(:signing_lock_path)
   end
 
   def test_acceptance_requires_staple_and_validation_and_never_leaves_keychain

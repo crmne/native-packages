@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.1 (2026-09-13)
+
+- Make imported Apple signing identities usable on clean macOS CI runners by
+  registering the temporary keychain in the user search list. Keep existing
+  entries and the default keychain; remove only the owned keychain afterward.
+  Coordinate parallel signing calls with a shared per-user lock.
+- Give each configuration its own reusable-workflow concurrency group so stable,
+  alpha and macOS validation calls cannot cancel each other while queued.
+
 ## 0.5.0 (2026-09-13)
 
 - Automatically sign and notarize native macOS DMG targets when all six Apple

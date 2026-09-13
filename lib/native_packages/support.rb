@@ -12,7 +12,7 @@ require "tmpdir"
 require "yaml"
 
 module NativePackages
-  VERSION = "0.5.0"
+  VERSION = "0.5.1"
   class Error < StandardError; end
 
   module Support

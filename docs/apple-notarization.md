@@ -31,8 +31,12 @@ native-packages --config native-packages.macos.yaml build \
 ```
 
 The gem imports the certificate and notary credentials into a fresh, temporary
-keychain. It never replaces the default keychain or its search list, and deletes
-its keychain after success or failure. Credential values are excluded from
+keychain. Since 0.5.1, it adds that keychain to the user's search list when needed
+on a clean runner, retaining existing entries and leaving the default keychain
+unchanged. Signing calls under the same OS user share a lock, so parallel native
+packaging hooks wait for the active signing call instead of racing search-list
+updates. It deletes only its own keychain and search-list entry after success or
+failure, preserving keychains added by other processes. Credential values are excluded from
 manifests and redacted from tool errors.
 
 The input is copied and checked before signing. All Mach-O code and nested

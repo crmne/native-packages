@@ -41,6 +41,21 @@ module NativePackages
     def with_identity
       doctor
       return yield(nil) unless enabled?
+      # The search list belongs to the OS user, not this project. Coordinate
+      # our signing calls across checkouts, including parallel packaging hooks.
+      lock_path = signing_lock_path
+      FileUtils.mkdir_p(lock_path.dirname, mode: 0o700)
+      File.open(lock_path, File::RDWR | File::CREAT, 0o600) do |lock|
+        lock.flock(File::LOCK_EX)
+        with_temporary_identity { yield self }
+      end
+    end
+
+    private def signing_lock_path
+      Pathname.new(Dir.home) / "Library/Caches/native-packages/macos-signing.lock"
+    end
+
+    private def with_temporary_identity
       Dir.mktmpdir("native-packages-signing-") do |directory|
         @keychain = Pathname.new(directory) / "signing.keychain-db"
         certificate = Pathname.new(directory) / "certificate.p12"
@@ -49,6 +64,12 @@ module NativePackages
         @redactions << password
         begin
           execute "security", "create-keychain", "-p", password, @keychain
+          # Clean runners may not add new keychains to the user search list.
+          # codesign needs that entry even when given an explicit --keychain.
+          search_list = Shellwords.shellsplit(execute("security", "list-keychains", "-d", "user"))
+          unless search_list.any? { |path| File.identical?(path, @keychain) }
+            execute "security", "list-keychains", "-d", "user", "-s", *search_list, @keychain
+          end
           execute "security", "set-keychain-settings", "-lut", "21600", @keychain
           execute "security", "unlock-keychain", "-p", password, @keychain
           execute "security", "import", certificate, "-k", @keychain,
@@ -63,8 +84,8 @@ module NativePackages
             "--password", @credentials.fetch("APPLE_APP_PASSWORD")
           yield self
         ensure
-          # Never replace the user's search list or default keychain. Deleting
-          # just this keychain also removes its own entry from the search list.
+          # delete-keychain removes only this keychain and its search-list entry.
+          # Never restore an old list over keychains added by another process.
           execute "security", "delete-keychain", @keychain if @keychain.exist?
           @keychain = nil
         end
