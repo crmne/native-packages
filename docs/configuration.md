@@ -67,9 +67,9 @@ native-packages publish --from dist/complete --to github
 Each build must use the same configuration, release version and timestamp. Aggregate rejects duplicate target/format outputs, conflicting recipe files and incomplete sets. Publishing recipes can still use the existing reviewed sequence: `stage TARGET DIRECTORY/recipes`, `diff TARGET`, then `publish TARGET --body-file FILE` where required by a submission destination.
 
 
-## Deferred recipe generation (unreleased)
+## Deferred recipe generation
 
-On `main`, after 0.3.1, use this opt-in sequence when downstream recipes depend
+Since 0.4.0, use this opt-in sequence when downstream recipes depend
 on packages built in separate jobs. The existing build and aggregate commands
 keep generating and checking recipes as before when the new flags are absent.
 There are no new configuration keys.

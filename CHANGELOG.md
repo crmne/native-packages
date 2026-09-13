@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (2026-09-13)
 
 - Add opt-in `build --defer-recipes` and `aggregate --finalize-recipes` so native
   targets can build without global recipe assets or AUR tools. Generate stable
