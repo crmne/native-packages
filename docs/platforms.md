@@ -17,6 +17,8 @@ All seven nFPM 2.47.0 packagers are exposed by the v0.2 CLI. Each target explici
 | Flatpak | No build/publication adapter yet | Use flatpak-builder and native manifests/runtime/sandbox settings |
 | Other Windows installers | No installer adapter beyond MSIX | Existing Inno Setup/NSIS/WiX and WinGet/Scoop integrations |
 
+The IPK acceptance fixture targets OpenWrt 24.10.8. OpenWrt 25.12 switched to APK, so IPK is not the package format for every OpenWrt release. [OpenWrt 25.12 release notes](https://openwrt.org/releases/25.12/notes-25.12.0)
+
 nFPM ends at constructing the package file, including its supported signing operations. It does not compile the application or host package indexes. [nFPM configuration](https://nfpm.goreleaser.com/docs/configuration/)
 
 The Windows acceptance test uses Windows SDK SignTool through `after_package`. Windows rejected nFPM 2.47.0's built-in signature with `0x80096010` in the initial acceptance run; do not assume its signing configuration alone produces a Windows-installable result.

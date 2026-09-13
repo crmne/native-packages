@@ -11,8 +11,9 @@ commands = {
   "rpm" => ["fedora:41", "rpm -U", "rpm -e"],
   "archlinux" => ["archlinux:base", "pacman --noconfirm -U", "pacman --noconfirm -R"],
   "apk" => ["alpine:3.24.0", "apk add --allow-untrusted", "apk del"],
-  "ipk" => ["openwrt/rootfs", "opkg install", "opkg remove"]
+  "ipk" => ["openwrt/rootfs:x86-64-24.10.8", "opkg install", "opkg remove"]
 }
+failures = []
 formats.each do |format|
   if format == "srpm"
     image = "fedora:41"
@@ -38,6 +39,11 @@ formats.each do |format|
     SH
   end
   output, status = Open3.capture2e("docker", "run", "--rm", "-v", "#{root}/dist/packages:/packages:ro", image, "sh", "-ec", script)
-  abort "#{format} acceptance failed:\n#{output}" unless status.success?
-  puts "#{format}: native install/upgrade/remove#{format == 'srpm' ? ' and source rebuild' : ''} passed"
+  if status.success?
+    puts "#{format}: native install/upgrade/remove#{format == 'srpm' ? ' and source rebuild' : ''} passed"
+  else
+    warn "#{format} acceptance failed:\n#{output}"
+    failures << format
+  end
 end
+abort "Native acceptance failed: #{failures.join(', ')}" unless failures.empty?

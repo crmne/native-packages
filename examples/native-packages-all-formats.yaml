@@ -1,0 +1,87 @@
+# Supply the listed build outputs before running this example.
+schema: 1
+tool:
+  version: '0.2.0'
+  nfpm: '2.47.0'
+nfpm:
+  name: example-app
+  description: Example native application
+  maintainer: Example Maintainer <maintainer@example.org>
+  license: MIT
+  contents:
+    - src: '@PAYLOAD@/example-app'
+      dst: /usr/bin/example-app
+      file_info:
+        mode: 0755
+  overrides:
+    archlinux:
+      depends: [glibc]
+targets:
+  linux-glibc-amd64:
+    platform: linux
+    arch: amd64
+    libc: glibc
+    formats: [deb, rpm, archlinux]
+    input:
+      kind: directory
+      local: dist/linux-glibc-amd64
+  linux-static-amd64:
+    platform: linux
+    arch: amd64
+    libc: static
+    formats: [apk]
+    input:
+      kind: directory
+      local: dist/linux-static-amd64
+  openwrt-amd64:
+    platform: linux
+    arch: amd64
+    libc: static
+    abi: OpenWrt x86_64; validate against your supported device image
+    formats: [ipk]
+    input:
+      kind: directory
+      local: dist/openwrt-amd64
+  windows-amd64:
+    platform: windows
+    arch: amd64
+    formats: [msix]
+    input:
+      kind: directory
+      local: dist/windows-amd64
+    # To sign, add an argument array calling your Windows SDK SignTool script:
+    # after_package: [pwsh, -File, scripts/sign-msix.ps1, '@PACKAGE@']
+    nfpm:
+      contents:
+        - src: '@PAYLOAD@/example-app.exe'
+          dst: /example-app.exe
+        - src: '@PAYLOAD@/logo150.png'
+          dst: /Assets/logo150.png
+        - src: '@PAYLOAD@/logo44.png'
+          dst: /Assets/logo44.png
+      msix:
+        publisher: CN=ExampleMaintainer
+        properties:
+          logo: Assets/logo150.png
+        applications:
+          - id: App
+            executable: example-app.exe
+            visual_elements:
+              display_name: Example App
+              description: Example native application
+              square150x150_logo: Assets/logo150.png
+              square44x44_logo: Assets/logo44.png
+  source:
+    kind: source
+    platform: linux
+    arch: all
+    formats: [srpm]
+    input:
+      kind: directory
+      local: dist/sources
+    nfpm:
+      contents:
+        - src: '@PAYLOAD@/example-app.spec'
+          dst: /example-app.spec
+        - src: '@PAYLOAD@/example-app-@VERSION@.tar.gz'
+          dst: /example-app-@VERSION@.tar.gz

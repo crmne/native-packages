@@ -59,6 +59,8 @@ Linux binary targets declare `libc: glibc`, `musl` or `static`. The tool inspect
 
 See [configuration and commands](docs/configuration.md) for tokens, release assets, hooks, version selection and publishing, and [platform coverage](docs/platforms.md) for each format's requirements.
 
+The [all-formats example](examples/native-packages-all-formats.yaml) shows separate Linux, OpenWrt, Windows and source inputs, including MSIX identity/assets and an SRPM source/spec layout.
+
 ## Release inputs and publication
 
 Build from local files before publishing an application release, or consume an existing release:
