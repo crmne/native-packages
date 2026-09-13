@@ -2,18 +2,20 @@
 
 require_relative "support"
 require_relative "repositories"
+require_relative "inspection"
 
 module NativePackages
   class Project
     include Support
     attr_reader :root, :config
 
-    def initialize(root)
+    def initialize(root, config: nil, registries: nil)
       @root = Pathname.new(root).realpath
-      @config = YAML.safe_load_file(@root / "packaging/project.yml", permitted_classes: [], aliases: false)
-      raise Error, "unsupported packaging configuration" unless config.fetch("version") == 1
-      raise Error, "invalid package name" unless /\A[a-z0-9][a-z0-9-]*\z/.match?(package_name)
-      config.fetch("assets").each_key do |key|
+      @config = config || YAML.safe_load_file(@root / "packaging/project.yml", permitted_classes: [], aliases: false)
+      @registries = registries
+      raise Error, "unsupported packaging configuration" unless @config.fetch("version") == 1
+      raise Error, "invalid package name" unless /\A[a-zA-Z0-9][a-zA-Z0-9._-]*\z/.match?(package_name)
+      @config.fetch("assets").each_key do |key|
         raise Error, "invalid asset key: #{key}" unless /\A[A-Z][A-Z0-9_]*\z/.match?(key)
       end
     end
@@ -22,7 +24,7 @@ module NativePackages
     def repository = config.fetch("release_repository", config.fetch("repository"))
     def upstream = "https://github.com/#{repository}"
     def cache(version) = root / ".cache/packaging" / version
-    def repositories = Repositories.new(project: self)
+    def repositories = Repositories.new(project: self, entries: @registries)
 
     def validate
       metadata = { "NAME" => package_name, "VERSION" => "9.8.7", "TAG" => "v9.8.7", "UPSTREAM" => upstream,
@@ -187,16 +189,7 @@ module NativePackages
 
     # Inspect release binaries without running them, including when packaging ARM on x86.
     def runtime_dependencies(payload, architecture, package)
-      libraries = {
-        "libgcc_s.so.1" => { "deb" => "libgcc-s1", "rpm" => "libgcc" },
-        "libstdc++.so.6" => { "deb" => "libstdc++6", "rpm" => "libstdc++" },
-        "libasound.so.2" => { "deb" => "libasound2", "rpm" => "alsa-lib" },
-        "libpulse.so.0" => { "deb" => "libpulse0", "rpm" => "pulseaudio-libs" },
-        "libpulse-simple.so.0" => { "deb" => "libpulse0", "rpm" => "pulseaudio-libs" },
-        "libpipewire-0.3.so.0" => { "deb" => "libpipewire-0.3-0", "rpm" => "pipewire-libs" },
-        "libssl.so.3" => { "deb" => "libssl3", "rpm" => "openssl-libs" },
-        "libcrypto.so.3" => { "deb" => "libssl3", "rpm" => "openssl-libs" }
-      }.merge(config.fetch("binary").fetch("libraries", {}))
+      libraries = Inspection::LIBRARIES.merge(config.fetch("binary").fetch("libraries", {}))
       elfs = files(payload).select { |file| file.binread(4) == "\x7fELF" }
       raise Error, "release archive contains no ELF binaries" if elfs.empty?
       bundled = elfs.map { |file| file.basename.to_s }

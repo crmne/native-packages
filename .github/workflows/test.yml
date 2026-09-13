@@ -3,6 +3,7 @@ name: Test
 on:
   push:
   pull_request:
+  workflow_call:
 
 permissions:
   contents: read
@@ -36,3 +37,45 @@ jobs:
           bundle exec ruby -Ilib exe/native-packages --help
           bundle exec ruby -Ilib exe/native-packages --version
           gem build native-packages.gemspec
+          ruby test/gem_install.rb native-packages-0.2.0.gem
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gem-ruby-${{ matrix.ruby }}
+          path: '*.gem'
+          if-no-files-found: error
+
+  linux-install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '4.0'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+          cache: false
+      - name: Build and install Linux package fixtures
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libarchive-tools binutils build-essential
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
+          ruby -Ilib test/build_acceptance.rb "$RUNNER_TEMP/acceptance"
+          ruby test/linux_acceptance.rb "$RUNNER_TEMP/acceptance"
+
+  windows-install:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+          cache: false
+      - name: Install nFPM
+        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
+      - name: Build, sign, install, upgrade and remove MSIX
+        shell: pwsh
+        run: ./test/windows_acceptance.ps1

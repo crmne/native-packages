@@ -9,14 +9,14 @@ module NativePackages
   class Repositories
     attr_reader :entries, :cache, :project
 
-    def initialize(project:, registry: project.root / "packaging/repositories.yml", cache: project.root / ".cache/packaging")
+    def initialize(project:, registry: project.root / "packaging/repositories.yml", cache: project.root / ".cache/packaging", entries: nil)
       @project = project
-      document = YAML.safe_load_file(registry, permitted_classes: [], aliases: false)
+      document = entries ? { "version" => 1, "repositories" => entries } : YAML.safe_load_file(registry, permitted_classes: [], aliases: false)
       raise Error, "unsupported repository registry version" unless document.fetch("version") == 1
 
       @entries = document.fetch("repositories")
       @cache = Pathname.new(cache).expand_path
-      entries.each do |name, entry|
+      @entries.each do |name, entry|
         raise Error, "invalid repository name: #{name}" unless /\A[a-z0-9-]+\z/.match?(name)
         raise Error, "unknown publish method for #{name}" unless %w[push github-pr gitlab-mr manual].include?(entry.fetch("publish"))
         entry.fetch("url")

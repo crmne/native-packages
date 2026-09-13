@@ -1,0 +1,31 @@
+schema: 1
+tool:
+  version: '0.2.0'
+  nfpm: '2.47.0'
+nfpm:
+  name: example-app
+  maintainer: Example Maintainer <maintainer@example.org>
+  description: Example native application
+  homepage: https://github.com/example/example-app
+  license: MIT
+  contents:
+    - src: '@PAYLOAD@/example-app'
+      dst: /usr/bin/example-app
+      file_info:
+        mode: 0755
+    - src: '@PAYLOAD@/LICENSE'
+      dst: /usr/share/licenses/example-app/LICENSE
+      file_info:
+        mode: 0644
+targets:
+  linux-amd64:
+    platform: linux
+    arch: amd64
+    libc: static
+    formats: [deb, rpm, archlinux]
+    input:
+      local: dist/example-app_@VERSION@_linux_amd64.tar.gz
+      release_asset: example-app_@VERSION@_linux_amd64.tar.gz
+release:
+  repository: example/example-app
+  checksums: checksums.txt

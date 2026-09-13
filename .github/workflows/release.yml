@@ -1,0 +1,49 @@
+name: Release gem
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: ./.github/workflows/test.yml
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: checks
+    runs-on: ubuntu-latest
+    environment: rubygems
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '4.0'
+      - uses: actions/download-artifact@v4
+        with:
+          name: gem-ruby-4.0
+          path: pkg
+      - name: Verify tag and tested gem
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          ruby -rrubygems/package -e 'p = Dir["pkg/*.gem"].fetch(0); s = Gem::Package.new(p).spec; abort "tag/version mismatch" unless ENV.fetch("RELEASE_TAG") == "v#{s.version}"'
+      - uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
+      - name: Publish tested gem
+        run: gem push pkg/*.gem
+      - name: Attach gem to GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" pkg/*.gem --clobber
+          else
+            gh release create "$RELEASE_TAG" pkg/*.gem --title "native-packages $RELEASE_TAG" --notes-file CHANGELOG.md
+          fi

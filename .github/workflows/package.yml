@@ -1,14 +1,24 @@
-name: Package a published release
+name: Package an application
 
 on:
   workflow_call:
     inputs:
       version:
-        default: ''
         type: string
+        default: ''
       publish:
         type: boolean
         default: false
+      config:
+        type: string
+        default: ''
+      source-artifact:
+        description: Optional Actions artifact containing local build inputs
+        type: string
+        default: ''
+      source-directory:
+        type: string
+        default: dist
     secrets:
       AUR_SSH_KEY:
         required: false
@@ -20,12 +30,66 @@ on:
 permissions:
   contents: read
 
-env:
-  BUNDLE_GEMFILE: ${{ github.workspace }}/packaging/Gemfile
-
 jobs:
-  recipes:
+  configuration:
     runs-on: ubuntu-latest
+    outputs:
+      legacy: ${{ steps.read.outputs.legacy }}
+      config: ${{ steps.read.outputs.config }}
+      gem-version: ${{ steps.read.outputs.gem-version }}
+      nfpm-version: ${{ steps.read.outputs.nfpm-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '4.0'
+      - id: read
+        env:
+          CONFIG: ${{ inputs.config }}
+        run: |
+          ruby -ryaml <<'RUBY'
+          paths = ENV.fetch('CONFIG').empty? ? %w[native-packages.yaml native-packages.yml].select { |path| File.file?(path) } : [ENV.fetch('CONFIG')]
+          abort 'multiple configuration files found' if paths.length > 1
+          File.open(ENV.fetch('GITHUB_OUTPUT'), 'a') do |output|
+            output.puts "legacy=#{paths.empty?}"
+            unless paths.empty?
+              path = paths.first
+              abort 'invalid configuration path' if path.include?("\n") || path.include?("\r")
+              config = YAML.safe_load_file(path, permitted_classes: [], aliases: false)
+              tool = config.fetch('tool')
+              %w[version nfpm].each { |key| abort "invalid tool.#{key}" unless /\A\d+\.\d+\.\d+\z/.match?(tool.fetch(key)) }
+              output.puts "config=#{path}"
+              output.puts "gem-version=#{tool.fetch('version')}"
+              output.puts "nfpm-version=#{tool.fetch('nfpm')}"
+            end
+          end
+          RUBY
+
+  legacy:
+    if: needs.configuration.outputs.legacy == 'true'
+    needs: configuration
+    permissions:
+      contents: write
+    uses: ./.github/workflows/package-legacy.yml
+    with:
+      version: ${{ inputs.version }}
+      publish: ${{ inputs.publish }}
+    secrets: inherit
+
+  packages:
+    if: needs.configuration.outputs.legacy != 'true'
+    needs: configuration
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: native-packages-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: false
+    env:
+      CONFIG: ${{ needs.configuration.outputs.config }}
+      GEM_VERSION: ${{ needs.configuration.outputs.gem-version }}
+      NFPM_VERSION: ${{ needs.configuration.outputs.nfpm-version }}
+      VERSION: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,86 +97,54 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '4.0'
-          bundler-cache: true
+      - name: Install configured gem
+        run: gem install native-packages --version "$GEM_VERSION" --no-document
+      - name: Validate configuration
+        run: native-packages --config "$CONFIG" validate
       - uses: actions/setup-go@v5
         if: inputs.version != ''
         with:
           go-version: '1.26.4'
           cache: false
       - name: Install packaging tools
+        if: inputs.version != ''
         run: |
           sudo apt-get update
-          sudo apt-get install -y libarchive-tools binutils rpm
-      - name: Install nFPM
-        if: inputs.version != ''
-        run: |
-          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
-      - name: Validate project recipes
-        run: bundle exec native-packages validate
-      - name: Prepare release packages
-        if: inputs.version != ''
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          bundle exec native-packages prepare "$VERSION" --output dist/packaging
-          bundle exec native-packages artifacts dist/packaging
+          sudo apt-get install -y libarchive-tools binutils xz-utils
+          go install "github.com/goreleaser/nfpm/v2/cmd/nfpm@v$NFPM_VERSION"
+      - uses: actions/download-artifact@v4
+        if: inputs.version != '' && inputs.source-artifact != ''
+        with:
+          name: ${{ inputs.source-artifact }}
+          path: ${{ inputs.source-directory }}
+      - name: Build packages from published release
+        if: inputs.version != '' && inputs.source-artifact == ''
+        run: native-packages --config "$CONFIG" build --release "$VERSION" --output dist/native-packages
+      - name: Build packages from local artifacts
+        if: inputs.version != '' && inputs.source-artifact != ''
+        run: native-packages --config "$CONFIG" build --version "$VERSION" --output dist/native-packages
       - uses: actions/upload-artifact@v4
         if: inputs.version != ''
         with:
-          name: packaging
-          path: dist/packaging/
+          name: native-packages
+          path: dist/native-packages/
           include-hidden-files: true
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        if: inputs.version != ''
-        with:
-          name: package-assets
-          path: dist/package-assets/
-          if-no-files-found: error
-
-  publish-assets:
-    if: inputs.publish && inputs.version != ''
-    needs: recipes
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '4.0'
-          bundler-cache: true
-      - uses: actions/download-artifact@v4
-        with:
-          name: package-assets
-          path: dist/package-assets
-      - name: Attach packages and recipe bundle to the release
+      - name: Attach packages to GitHub release
+        if: inputs.publish && inputs.version != ''
         env:
-          VERSION: ${{ inputs.version }}
           GH_TOKEN: ${{ github.token }}
-        run: bundle exec native-packages publish-release "$VERSION" dist/package-assets
-
-  publish-aur:
-    if: inputs.publish && vars.PUBLISH_AUR == 'true'
-    needs: publish-assets
-    runs-on: ubuntu-latest
-    concurrency:
-      group: publish-aur
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '4.0'
-          bundler-cache: true
-      - uses: actions/download-artifact@v4
-        with:
-          name: packaging
-          path: dist/packaging
-      - name: Configure AUR credentials
+        run: native-packages --config "$CONFIG" publish --from dist/native-packages --to github
+      - name: Publish AUR recipes
+        if: inputs.publish && inputs.version != '' && vars.PUBLISH_AUR == 'true'
         env:
           AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
           AUR_KNOWN_HOSTS: ${{ secrets.AUR_KNOWN_HOSTS }}
+          GIT_AUTHOR_NAME: ${{ github.actor }}
+          GIT_AUTHOR_EMAIL: ${{ github.actor }}@users.noreply.github.com
+          GIT_COMMITTER_NAME: ${{ github.actor }}
+          GIT_COMMITTER_EMAIL: ${{ github.actor }}@users.noreply.github.com
+          GIT_SSH_COMMAND: ssh -o BatchMode=yes -o StrictHostKeyChecking=yes
         run: |
           test -n "$AUR_SSH_KEY"
           test -n "$AUR_KNOWN_HOSTS"
@@ -120,33 +152,9 @@ jobs:
           printf '%s\n' "$AUR_SSH_KEY" > ~/.ssh/id_ed25519
           printf '%s\n' "$AUR_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
-      - name: Publish AUR recipes
-        env:
-          GIT_AUTHOR_NAME: ${{ github.actor }}
-          GIT_AUTHOR_EMAIL: ${{ github.actor }}@users.noreply.github.com
-          GIT_COMMITTER_NAME: ${{ github.actor }}
-          GIT_COMMITTER_EMAIL: ${{ github.actor }}@users.noreply.github.com
-          GIT_SSH_COMMAND: ssh -o BatchMode=yes -o StrictHostKeyChecking=yes
-        run: bundle exec native-packages publish-aur dist/packaging
-
-  publish-homebrew:
-    if: inputs.publish && vars.PUBLISH_HOMEBREW == 'true'
-    needs: publish-assets
-    runs-on: ubuntu-latest
-    concurrency:
-      group: publish-homebrew
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '4.0'
-          bundler-cache: true
-      - uses: actions/download-artifact@v4
-        with:
-          name: packaging
-          path: dist/packaging
+          native-packages --config "$CONFIG" publish --from dist/native-packages --to aur
       - name: Publish Homebrew recipe
+        if: inputs.publish && inputs.version != '' && vars.PUBLISH_HOMEBREW == 'true'
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
           GIT_AUTHOR_NAME: ${{ github.actor }}
@@ -156,5 +164,4 @@ jobs:
         run: |
           test -n "$GH_TOKEN"
           gh auth setup-git
-          bundle exec native-packages stage homebrew dist/packaging
-          bundle exec native-packages publish homebrew
+          native-packages --config "$CONFIG" publish --from dist/native-packages --to homebrew

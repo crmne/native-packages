@@ -12,7 +12,7 @@ require "tmpdir"
 require "yaml"
 
 module NativePackages
-  VERSION = "0.1.0"
+  VERSION = "0.2.0"
   class Error < StandardError; end
 
   module Support
@@ -30,7 +30,10 @@ module NativePackages
     end
 
     def available?(name)
-      ENV.fetch("PATH", "").split(File::PATH_SEPARATOR).any? { |path| File.executable?(File.join(path, name)) && File.file?(File.join(path, name)) }
+      extensions = Gem.win_platform? ? [""] + ENV.fetch("PATHEXT", ".EXE;.BAT;.CMD").split(";").map(&:downcase) : [""]
+      ENV.fetch("PATH", "").split(File::PATH_SEPARATOR).any? do |path|
+        extensions.any? { |extension| File.executable?(File.join(path, name + extension)) && File.file?(File.join(path, name + extension)) }
+      end
     end
 
     def version_arg(value)
