@@ -61,6 +61,10 @@ the application's existing packaging commands on macOS or Windows, using the
 same verified build manifests as Linux packages. Native recipes consume prepared
 directories and need no nFPM installation. The gem checks Mach-O/PE architecture,
 preserves safe internal bundle links and hashes the output after signing hooks.
+With complete Apple credentials, macOS DMG builds automatically sign their owned
+app copy, notarize the image, staple and validate its ticket before recording
+checksums. `notarize-macos INPUT --output OUTPUT` prepares signed, notarized
+portable code for an application-owned archive. See [Apple notarization](docs/apple-notarization.md).
 App compilation, installer policy and signing identities stay in the application
 repository.
 
@@ -103,7 +107,7 @@ packaging:
   needs: release
   permissions:
     contents: write
-  uses: crmne/native-packages/.github/workflows/package.yml@v0.4.0
+  uses: crmne/native-packages/.github/workflows/package.yml@v0.5.0
   with:
     version: ${{ github.ref_name }}
     publish: true
@@ -129,7 +133,7 @@ Migration combines `packaging/project.yml`, its nFPM definition and repository r
 bundle install
 bundle exec ruby -Ilib -e 'Dir["test/*_test.rb"].sort.each { |path| require_relative path }'
 gem build native-packages.gemspec
-ruby test/gem_install.rb native-packages-0.4.0.gem
+ruby test/gem_install.rb native-packages-0.5.0.gem
 ```
 
 Tests build real packages, inspect their payloads and exercise repository publication against local Git fixtures. CI additionally runs disposable Linux install/upgrade/remove checks, SRPM rebuilds and Windows MSIX acceptance. Runtime build manifests report installation as `not-tested`: CI fixture coverage is not a substitute for testing each application's packages.

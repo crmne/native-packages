@@ -39,7 +39,7 @@ before_build: [./scripts/build-linux.sh, '@ARCH@']
 
 It runs once per selected target in the configuration directory, before copying local inputs. `NATIVE_PACKAGES_TARGET` and `NATIVE_PACKAGES_VERSION` are also set. It is skipped in release mode and never executed by `validate`, `doctor` or a dry run. A shell script remains responsible for complex build operations.
 
-`after_package` is an optional argument array invoked once per generated package, before output hashes are recorded. It additionally receives `@PACKAGE@` and `@FORMAT@`. Use it for existing native signing tools, for example a Windows SDK SignTool script. It runs in local and release mode and must preserve the output filename and file set. The MSIX acceptance test uses SignTool because Windows rejected the signature produced by nFPM 2.47.0's built-in signer in that test.
+`after_package` is an optional argument array invoked once per generated package, before output hashes are recorded. For native DMG targets, automatic [Apple notarization](apple-notarization.md) runs after this hook; input signing completes before the native recipe. It additionally receives `@PACKAGE@` and `@FORMAT@`. Use it for existing native signing tools, for example a Windows SDK SignTool script. It runs in local and release mode and must preserve the output filename and file set. The MSIX acceptance test uses SignTool because Windows rejected the signature produced by nFPM 2.47.0's built-in signer in that test.
 
 ## Tokens and additional assets
 

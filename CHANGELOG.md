@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.0 (2026-09-13)
+
+- Automatically sign and notarize native macOS DMG targets when all six Apple
+  environment variables are present. Sign nested code inside out on an owned
+  copy, preserve entitlements, validate Apple acceptance and stapled tickets,
+  and hash the final package. Incomplete credentials fail before packaging.
+- Add `notarize-macos INPUT --output OUTPUT` for signed portable directory
+  copies, using a temporary ZIP submission before application-owned archiving.
+- Isolate imported certificates and notary credentials in a disposable keychain,
+  redact private values from command failures, and retain existing local, Linux
+  and Windows packaging behavior when Apple signing is not enabled.
+
 ## 0.4.0 (2026-09-13)
 
 - Add opt-in `build --defer-recipes` and `aggregate --finalize-recipes` so native

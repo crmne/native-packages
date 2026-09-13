@@ -8,7 +8,7 @@ Applications keep their own configuration and templates. This repository holds t
 
 | Layer | Responsibility |
 | --- | --- |
-| Application build jobs | Compile for each OS and architecture; create compatible binaries, macOS bundles and Windows installers; sign and notarize where required. |
+| Application build jobs | Compile for each OS and architecture; create compatible binaries, macOS bundles and Windows installers; provide Apple credentials to shared native builds or retain their existing signing tools. |
 | nFPM | Turn a set of built files and package metadata into native package files. |
 | native-packages | Verify release checksums, render recipes, check Linux ELF dependencies, invoke nFPM, attach packaging assets, and stage or publish downstream updates. |
 | Distribution infrastructure | Build and review submitted recipes, host package indexes, and make packages available to users. |

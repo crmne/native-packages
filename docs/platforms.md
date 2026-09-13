@@ -12,11 +12,11 @@ All seven nFPM 2.47.0 packagers are exposed by the v0.2 CLI. Each target explici
 | MSIX | nFPM `msix`, PE architecture checks, `after_package` hook for native signing | Windows executables/DLLs, application identity, assets, capabilities and signing certificate |
 | SRPM | nFPM `srpm`, source/spec input validation | A correct spec and sources, native rebuild testing |
 | AUR | Template rendering, `.SRCINFO`, staged Git publication | Native PKGBUILD source/bin/git variants and build checks |
-| Homebrew | Hash/render supplied formulae or casks and publish a tap | macOS bundles, signing/notarization, native recipe logic |
+| Homebrew | Hash/render supplied formulae or casks and publish a tap | Completed macOS assets, native recipe logic |
 | Nixpkgs/Gentoo/Void and similar repositories | Template rendering and configured Git/PR/MR publication | Native recipes, dependency hashes, distro checks and review |
 | Flatpak | No build/publication adapter yet | Use flatpak-builder and native manifests/runtime/sandbox settings |
 | Inno Setup | Native command adapter, PE inspection, copied input and final output hashes | Inno recipe/compiler, application version mapping, signing and installation tests |
-| macOS DMG | Native command adapter, Mach-O inspection, copied bundle and final output hashes | Bundle, hdiutil recipe, signing/notarization, update/rollback testing |
+| macOS DMG | Native command adapter, Mach-O inspection, automatic Developer ID signing/notarization with Apple credentials, final stapled hashes | Bundle, hdiutil recipe, Apple credentials/entitlements, update/rollback testing |
 | Other Windows installers | No adapter for NSIS/WiX yet | Existing native tools and WinGet/Scoop integrations |
 
 The IPK acceptance fixture targets OpenWrt 24.10.8. OpenWrt 25.12 switched to APK, so IPK is not the package format for every OpenWrt release. [OpenWrt 25.12 release notes](https://openwrt.org/releases/25.12/notes-25.12.0)

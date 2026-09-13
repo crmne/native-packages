@@ -3,6 +3,7 @@
 require_relative "configuration"
 require_relative "inspection"
 require_relative "native_recipe"
+require_relative "macos_signing"
 
 module NativePackages
   class Build
@@ -35,6 +36,7 @@ module NativePackages
         next unless target["native"]
         metadata = configuration.target_tokens(configuration.tokens("9.8.7"), id, target, "/payload").merge("PACKAGE" => "/output/package", "FORMAT" => target.fetch("formats").first)
         NativeRecipe.new(root).doctor(target, render_tree(target.fetch("native").fetch("command"), metadata))
+        MacosSigning.new(root).doctor if target["platform"] == "macos"
       end
       required = []
       required << "readelf" if selected.values.any? { |target| target["platform"] == "linux" && target.fetch("kind", "binary") == "binary" }
@@ -129,52 +131,58 @@ module NativePackages
           digest = native ? native.digest(source) : input_digest(source)
           sources << { "target" => id, "path" => source.to_s, "sha256" => digest }
           Dir.mktmpdir("native-packages-input-") do |directory|
-            payload = Pathname.new(directory) / "payload"
+            payload = Pathname.new(directory) / (native && source.extname == ".app" ? source.basename : "payload")
             if native
               FileUtils.cp_r(source, payload, preserve: true)
               raise Error, "native input changed while staging" unless native.digest(payload) == digest
             else
               copy_input(source, payload, input.fetch("kind", "archive"))
             end
-            target.fetch("formats").each do |format|
-              destination = staging / "packages" / id / format
-              destination.mkpath
-              if native
-                inspection = native.inspect(payload, target)
-                recipe = target.fetch("native")
-                tokens = configuration.target_tokens(info, id, target, payload)
-                package_path = destination / render(recipe.fetch("output"), tokens)
-                run(*render_tree(recipe.fetch("command"), tokens.merge("PACKAGE" => package_path.to_s, "FORMAT" => format)),
-                  env: { "SOURCE_DATE_EPOCH" => info.fetch("SOURCE_DATE_EPOCH").to_s, "NATIVE_PACKAGES_TARGET" => id, "NATIVE_PACKAGES_VERSION" => number })
-                packages = files(destination)
-                raise Error, "native recipe must create only its declared output" unless packages == [package_path]
-                native.check_output(package_path, format)
-              else
-                package = render_tree(configuration.package(target), configuration.target_tokens(info, id, target, payload))
-                if number.include?("-") && (package.fetch("version_schema", "semver") != "semver" || %w[prerelease version_metadata].any? { |key| package.key?(key) && !package[key].to_s.empty? })
-                  raise Error, "prerelease package versions must use unmodified nFPM semver conversion"
+            signer = target["platform"] == "macos" ? MacosSigning.new(root) : nil
+            with_signing(signer) do |signing|
+              signing.sign_payload(payload) if signing
+              payload_digest = native && native.digest(payload)
+              target.fetch("formats").each do |format|
+                destination = staging / "packages" / id / format
+                destination.mkpath
+                if native
+                  inspection = native.inspect(payload, target)
+                  recipe = target.fetch("native")
+                  tokens = configuration.target_tokens(info, id, target, payload)
+                  package_path = destination / render(recipe.fetch("output"), tokens)
+                  run(*render_tree(recipe.fetch("command"), tokens.merge("PACKAGE" => package_path.to_s, "FORMAT" => format)),
+                    env: { "SOURCE_DATE_EPOCH" => info.fetch("SOURCE_DATE_EPOCH").to_s, "NATIVE_PACKAGES_TARGET" => id, "NATIVE_PACKAGES_VERSION" => number })
+                  packages = files(destination)
+                  raise Error, "native recipe must create only its declared output" unless packages == [package_path]
+                  native.check_output(package_path, format)
+                else
+                  package = render_tree(configuration.package(target), configuration.target_tokens(info, id, target, payload))
+                  if number.include?("-") && (package.fetch("version_schema", "semver") != "semver" || %w[prerelease version_metadata].any? { |key| package.key?(key) && !package[key].to_s.empty? })
+                    raise Error, "prerelease package versions must use unmodified nFPM semver conversion"
+                  end
+                  package.merge!("name" => configuration.name, "version" => number, "arch" => target.fetch("arch"),
+                    "platform" => target.fetch("platform"), "mtime" => info.fetch("DATE"))
+                  inspection = Inspection.new(root, configuration.data.fetch("libraries")).check(package, target, format)
+                  config_path = Pathname.new(directory) / "nfpm.yaml"
+                  write(config_path, YAML.dump(package))
+                  run "nfpm", "package", "--config", config_path, "--packager", format, "--target", destination,
+                    env: { "SOURCE_DATE_EPOCH" => info.fetch("SOURCE_DATE_EPOCH").to_s }
+                  packages = files(destination)
+                  raise Error, "nFPM did not create exactly one #{format} package" unless packages.length == 1
                 end
-                package.merge!("name" => configuration.name, "version" => number, "arch" => target.fetch("arch"),
-                  "platform" => target.fetch("platform"), "mtime" => info.fetch("DATE"))
-                inspection = Inspection.new(root, configuration.data.fetch("libraries")).check(package, target, format)
-                config_path = Pathname.new(directory) / "nfpm.yaml"
-                write(config_path, YAML.dump(package))
-                run "nfpm", "package", "--config", config_path, "--packager", format, "--target", destination,
-                  env: { "SOURCE_DATE_EPOCH" => info.fetch("SOURCE_DATE_EPOCH").to_s }
-                packages = files(destination)
-                raise Error, "nFPM did not create exactly one #{format} package" unless packages.length == 1
+                if target["after_package"]
+                  hook_tokens = configuration.target_tokens(info, id, target, payload).merge("PACKAGE" => packages.first.to_s, "FORMAT" => format)
+                  run(*render_tree(target.fetch("after_package"), hook_tokens), env: { "NATIVE_PACKAGES_TARGET" => id, "NATIVE_PACKAGES_VERSION" => number })
+                  raise Error, "after_package must preserve the package path and output set" unless files(destination) == packages
+                end
+                if native
+                  native.check_output(packages.first, format)
+                  raise Error, "native recipes/signing must not change their input payload" unless native.digest(payload) == payload_digest
+                end
+                inspection["apple"] = signing.notarize(packages.first) if signing
+                records << { "target" => id, "format" => format, "path" => packages.first.relative_path_from(staging).to_s,
+                  "sha256" => sha256(packages.first), "validation" => inspection }
               end
-              if target["after_package"]
-                signing = configuration.target_tokens(info, id, target, payload).merge("PACKAGE" => packages.first.to_s, "FORMAT" => format)
-                run(*render_tree(target.fetch("after_package"), signing), env: { "NATIVE_PACKAGES_TARGET" => id, "NATIVE_PACKAGES_VERSION" => number })
-                raise Error, "after_package must preserve the package path and output set" unless files(destination) == packages
-              end
-              if native
-                native.check_output(packages.first, format)
-                raise Error, "native recipes/signing must not change their input payload" unless native.digest(payload) == digest
-              end
-              records << { "target" => id, "format" => format, "path" => packages.first.relative_path_from(staging).to_s,
-                "sha256" => sha256(packages.first), "validation" => inspection }
             end
           end
         end
@@ -192,6 +200,14 @@ module NativePackages
       end
       puts "Built #{selected.values.sum { |target| target.fetch('formats').length }} packages in #{output}"
       output
+    end
+
+    def with_signing(signer)
+      if signer&.enabled?
+        signer.with_identity { |active| yield active }
+      else
+        yield nil
+      end
     end
 
     def release_cache(info)

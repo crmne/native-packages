@@ -76,6 +76,25 @@ class NativeRecipeTest < Minitest::Test
     end
   end
 
+  def test_windows_after_package_hook_remains_independent_of_apple_signing
+    @data["targets"]["windows"]["after_package"] = [RbConfig.ruby, "-e", "File.open(ARGV[0], 'ab') { |file| file.write('hook') }", "@PACKAGE@"]
+    previous = NativePackages::MacosSigning::VARIABLES.to_h { |name| [name, ENV[name]] }
+    [false, true].each do |credentials|
+      NativePackages::MacosSigning::VARIABLES.each { |name| ENV[name] = credentials ? "not used by Windows" : nil }
+      fixture_host do
+        build = builder
+        output = @root / "hooked-#{credentials}"
+        capture_io { build.run_build(value: "1.2.3", output: output) }
+        manifest = build.verify(output)
+        record = manifest.fetch("packages").first
+        assert (output / record.fetch("path")).binread.end_with?("hook")
+        refute record.fetch("validation").key?("apple")
+      end
+    end
+  ensure
+    previous&.each { |name, value| ENV[name] = value }
+  end
+
   def test_failed_extra_or_modified_outputs_never_publish_a_build
     fixture_host do
       commands = [

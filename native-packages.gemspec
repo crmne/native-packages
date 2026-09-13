@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |spec|
   spec.name = "native-packages"
-  spec.version = "0.4.0"
+  spec.version = "0.5.0"
   spec.summary = "Shared release packaging and downstream recipe updates with nFPM"
   spec.authors = ["Carmine Paolino"]
   spec.email = ["carmine@paolino.me"]

@@ -14,6 +14,7 @@ module NativePackages
           [--target ID] [--format FORMAT]          Select targets/formats (repeatable)
           [--output DIRECTORY] [--dry-run]         Choose output or inspect the plan
           [--defer-recipes]                        Build targets without recipe assets/tools
+        notarize-macos DIRECTORY --output DIRECTORY Copy, sign and notarize portable Mac code
         aggregate DIR... --output DIRECTORY        Combine target builds before publishing
           [--finalize-recipes]                    Generate recipes from deferred builds
         publish --from DIRECTORY --to github,aur   Publish a complete, verified build
@@ -46,7 +47,7 @@ module NativePackages
       parser = OptionParser.new do |flags|
         flags.on("--config FILE") { |value| config_path = value }
         flags.on("--help", "-h") { puts HELP; return }
-        flags.on("--output DIRECTORY") { |value| options[:output] = Pathname.new(value).expand_path(root) } if %w[build aggregate artifacts prepare].include?(command)
+        flags.on("--output DIRECTORY") { |value| options[:output] = Pathname.new(value).expand_path(root) } if %w[build aggregate artifacts prepare notarize-macos].include?(command)
         flags.on("--body-file FILE") { |value| options[:body_file] = Pathname.new(value).expand_path(root) } if command == "publish"
         if %w[build doctor].include?(command)
           flags.on("--target ID") { |value| options[:ids] << value }
@@ -78,7 +79,7 @@ module NativePackages
       parser.parse!(arguments)
       arity = { "init" => 0..0, "migrate" => 0..0, "build" => 0..0, "doctor" => 0..0, "aggregate" => 1..,
         "prepare" => 1..1, "check" => 1..1, "artifacts" => 1..1, "publish-release" => 2..2,
-        "repositories" => 0..0, "stage" => 2..2, "diff" => 1..1, "publish" => options[:from] ? 0..0 : 1..1,
+        "notarize-macos" => 1..1, "repositories" => 0..0, "stage" => 2..2, "diff" => 1..1, "publish" => options[:from] ? 0..0 : 1..1,
         "publish-aur" => 1..1, "status" => 0..1, "check-version" => 1..1, "validate" => 0..0 }[command]
       raise Error, HELP unless arity&.cover?(arguments.length)
       if command == "init"
@@ -86,6 +87,10 @@ module NativePackages
         return Scaffold.new(root).init(**options.slice(:interactive, :name, :input).merge(formats: options[:init_formats]))
       end
       return Scaffold.new(root).migrate(dry_run: options[:dry_run]) if command == "migrate"
+      if command == "notarize-macos"
+        raise Error, "notarize-macos requires --output" unless options[:output]
+        return MacosSigning.new(root).prepare_directory(arguments.first, output: options.fetch(:output))
+      end
       path = Configuration.discover(root, config_path)
       configuration = path && Configuration.new(path)
       if %w[build doctor aggregate].include?(command) || options[:from]

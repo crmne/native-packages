@@ -1,14 +1,16 @@
-# Native DMG and Inno recipes (0.3)
+# Native DMG and Inno recipes
 
 The shared build command can coordinate existing macOS and Windows packaging
 scripts. These are native command adapters, separate from nFPM. They do not
-generate an installer recipe, compile an app, supply signing identities or
-automatically notarize anything. The application retains those decisions.
+generate an installer recipe or compile an app. Since 0.5.0, complete Apple
+credentials automatically enable Developer ID signing and notarization for DMG
+targets. The application supplies its identity, bundle contents and entitlements.
+See [Apple notarization](apple-notarization.md).
 
 ```yaml
 schema: 1
 tool:
-  version: '0.3.0'
+  version: '0.5.0'
   nfpm: '2.47.0'
 nfpm:
   name: example-app
@@ -55,9 +57,9 @@ the configuration for compatibility with mixed Linux/native builds.
 
 `native.command` is a nonempty argument array, including `@PACKAGE@`, which
 resolves to the exact output filename in a fresh directory. `@PAYLOAD@` is an
-owned copy of the input directory's contents. It does not retain the original
-directory's basename: a DMG script should copy it into its own temporary
-`Example.app` folder before calling hdiutil. Other existing target tokens apply.
+owned copy of the input directory's contents. A top-level `.app` retains its basename; other input directories use `payload`.
+A DMG script should copy the owned input into its own temporary
+`Example.app` folder or image staging directory before calling hdiutil. Other existing target tokens apply.
 Commands run in the application configuration directory and receive the same
 target/version environment as other build hooks.
 
@@ -70,17 +72,18 @@ must check its own additional tools. Mac architecture inspection also needs
 Apple's `lipo`. Supported Mac targets are `amd64`, `arm64` and `universal` (both).
 
 Input copying preserves file modes and internal relative symlinks, including
-framework links. Escaping, dangling and special-file entries fail. The staged
-tree must match the original digest and remain unchanged after packaging and
-signing hooks. Package only this staged input; do not read another application
+framework links. Escaping, dangling and special-file entries fail. The initial staged tree must match the original digest. Automatic Apple
+signing then signs only that owned copy. The signed staged tree must remain
+unchanged after application packaging and `after_package` hooks. Package only this staged input; do not read another application
 build from a global location. Recipes should preserve existing destinations,
 clean only their own temporary files and use argument arrays for subprocesses.
 
 The command must create exactly its declared `.dmg` or `.exe` file. The adapter
 checks a UDIF trailer or PE container respectively. This is a container check,
-not proof of a valid installer, signature or application. The existing
-`after_package` hook can sign/notarize the output in place before the final hash
-is recorded. Do not modify a package after building its manifest: signature
+not proof of a valid installer, signature or application. The existing `after_package` hook runs before automatic Apple DMG signing,
+notarization and stapling, all before the final hash is recorded. Remove redundant
+Apple signing/notarization hooks when enabling automatic credentials. Other
+application-specific output hooks remain supported. Do not modify a package after building its manifest: signature
 stapling changes bytes and must run inside that hook if the manifest is to verify.
 
 Applications should invoke hdiutil's verification, platform signature checks and
