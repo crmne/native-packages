@@ -6,14 +6,11 @@ Applications keep their build scripts, installation assets and native recipes. T
 
 ## Install and build
 
-Version 0.2 is being prepared for RubyGems publication. Until published, build and install the gem from this repository:
-
 ```sh
-gem build native-packages.gemspec
-gem install ./native-packages-0.2.0.gem
+gem install native-packages
 ```
 
-After publication, installation is `gem install native-packages`. Install nFPM 2.47.0 separately for local use; the reusable CI workflow installs it for you. Ruby 3.2 or later is required.
+Install nFPM 2.47.0 separately for local use; the reusable CI workflow installs it for you. Ruby 3.2 or later is required.
 
 From an application directory:
 
@@ -92,7 +89,7 @@ packaging:
   secrets: inherit
 ```
 
-This reference becomes available when v0.2.0 is tagged. Pin the corresponding commit SHA for an immutable workflow reference. With no version, the workflow validates configuration only. With a version, it installs the configured gem and nFPM, builds packages and uploads an Actions artifact. `publish: true` attaches packages to the existing release.
+Pin the corresponding commit SHA for an immutable workflow reference. With no version, the workflow validates configuration only. With a version, it installs the configured gem and nFPM, builds packages and uploads an Actions artifact. `publish: true` attaches packages to the existing release.
 
 To consume an Actions artifact instead, set `source-artifact` and, if necessary, `source-directory` (default `dist`). Its files must match the local input paths in the configuration. This workflow packages on Linux, including MSIX creation from Windows binaries; native application builds and platform-specific signing jobs can use the CLI separately.
 
