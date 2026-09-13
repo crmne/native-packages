@@ -47,6 +47,8 @@ class PrereleasePackagingTest < Minitest::Test
     (@root / "recipe.txt").write("@VERSION@\n")
     @data["templates"] = { "recipe.txt" => "recipe.txt" }
     assert_raises(NativePackages::Error) { builder.run_build(value: "1.2.3-alpha.1", dry_run: true) }
+    # Deferring recipe generation must not bypass the stable-only boundary.
+    assert_raises(NativePackages::Error) { builder.run_build(value: "1.2.3-alpha.1", dry_run: true, defer_recipes: true) }
     refute_path_exists @root / "dist"
   end
 

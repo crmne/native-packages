@@ -27,7 +27,7 @@ module NativePackages
       version
     end
 
-    def doctor(ids: [], formats: [], release: false)
+    def doctor(ids: [], formats: [], release: false, defer_recipes: false)
       configuration.validate
       selected = configuration.select(ids: ids, formats: formats)
       nfpm_version if selected.values.any? { |target| (target.fetch("formats") & Configuration::NATIVE_FORMATS).empty? }
@@ -40,13 +40,19 @@ module NativePackages
       required << "readelf" if selected.values.any? { |target| target["platform"] == "linux" && target.fetch("kind", "binary") == "binary" }
       required << "bsdtar" if selected.values.any? { |target| target.fetch("input").fetch("kind", "archive") == "archive" }
       required << "curl" if release
-      required += %w[tar xz] unless configuration.data.fetch("templates").empty?
       missing = required.uniq.reject { |tool| available?(tool) }
       raise Error, "install required tools: #{missing.join(', ')}" unless missing.empty?
+      recipe_tools unless defer_recipes
+      selected
+    end
+
+    def recipe_tools
+      return if configuration.data.fetch("templates").empty?
+      missing = %w[tar xz].reject { |tool| available?(tool) }
+      raise Error, "install required recipe tools: #{missing.join(', ')}" unless missing.empty?
       if configuration.data.fetch("templates").keys.any? { |path| path.match?(%r{\Aarch/[^/]+/PKGBUILD\z}) }
         raise Error, "AUR metadata needs makepkg or accessible Docker" unless available?("makepkg") || available?("docker")
       end
-      selected
     end
 
     def version(value, release)
@@ -73,7 +79,7 @@ module NativePackages
       configuration.tokens(version, epoch: epoch).merge("GIT_VERSION" => git_version)
     end
 
-    def run_build(value: nil, release: nil, ids: [], formats: [], output: nil, dry_run: false)
+    def run_build(value: nil, release: nil, ids: [], formats: [], output: nil, dry_run: false, defer_recipes: false)
       configuration.validate
       selected = configuration.select(ids: ids, formats: formats)
       number = version(value, release)
@@ -84,15 +90,26 @@ module NativePackages
       output = Pathname.new(output || root / "dist/packages" / number).expand_path(root)
       if dry_run
         puts JSON.pretty_generate("version" => number, "mode" => release ? "release" : "local", "output" => output.to_s,
-          "targets" => selected.transform_values { |target| target.slice("formats", "platform", "arch", "input", "before_build", "after_package", "native") })
+          "recipes" => defer_recipes ? "deferred" : "included", "targets" => selected.transform_values { |target| target.slice("formats", "platform", "arch", "input", "before_build", "after_package", "native") })
         return
       end
       raise Error, "output exists: #{output}; choose a fresh --output" if output.exist?
-      doctor(ids: ids, formats: formats, release: !!release)
+      doctor(ids: ids, formats: formats, release: !!release, defer_recipes: defer_recipes)
       info = metadata(number, release: !!release)
       sources = []
       expected = release ? release_checksums(info) : nil
-      acquire_assets(info, expected, sources)
+      if defer_recipes
+        # Asset hashes are unknown until finalization. Do not silently pass the
+        # validation placeholders into a target's input, hooks or package data.
+        configuration.data.fetch("assets").each_key { |key| info.delete("#{key}_SHA256") }
+        selected.each do |id, target|
+          tokens = configuration.target_tokens(info, id, target, "/payload").merge("PACKAGE" => "/output/package", "FORMAT" => target.fetch("formats").first)
+          render_tree(target, tokens)
+          render_tree(configuration.package(target), tokens)
+        end
+      else
+        acquire_assets(info, expected, sources)
+      end
       output.dirname.mkpath
       Dir.mktmpdir(".native-packages-", output.dirname) do |temporary|
         staging = Pathname.new(temporary) / "result"
@@ -161,17 +178,14 @@ module NativePackages
             end
           end
         end
-        recipes = staging / "recipes"
-        project.generate(recipes, info)
-        project.check(recipes, prerelease: number.include?("-"))
-        if !configuration.data.fetch("templates").empty?
-          project.recipe_archive(recipes, staging, name: configuration.name, version: number, epoch: info.fetch("SOURCE_DATE_EPOCH"))
-          (staging / "packaging-checksums.txt").delete
-        end
+        write_recipes(staging, info) unless defer_recipes
         manifest = { "schema" => 1, "name" => configuration.name, "version" => number, "configuration" => configuration.digest,
           "tool" => configuration.data.fetch("tool"), "epoch" => info.fetch("SOURCE_DATE_EPOCH"), "inputs" => sources,
           "targets" => selected.transform_values { |target| target.fetch("formats") }, "packages" => records,
           "files" => files(staging).to_h { |file| [file.relative_path_from(staging).to_s, sha256(file)] } }
+        if defer_recipes
+          manifest["recipes"] = { "state" => "deferred", "metadata" => info.reject { |key, _| key == "ROOT" } }
+        end
         write(staging / "build.json", JSON.pretty_generate(manifest) + "\n")
         write(staging / "packaging-checksums.txt", files(staging).map { |file| "#{sha256(file)}  #{file.relative_path_from(staging)}\n" }.join)
         staging.rename(output)
@@ -212,10 +226,12 @@ module NativePackages
       path
     end
 
-    def acquire_assets(info, expected, sources)
+    def acquire_assets(info, expected, sources, packages: {})
       configuration.data.fetch("assets").each do |key, definition|
         asset = render_tree(definition, info)
-        path = if expected
+        path = if packages.key?(asset.fetch("file"))
+          packages.fetch(asset.fetch("file"))
+        elsif expected
           release_input(asset.merge("release_asset" => asset.fetch("file")), info, expected, checksummed: asset.fetch("checksummed", true))
         else
           root / asset.fetch("local") { raise Error, "assets.#{key}: declare local input or use --release" }
@@ -224,7 +240,15 @@ module NativePackages
         info["#{key}_SHA256"] = digest
         info["#{key}_FILE"] = asset.fetch("file")
         info["#{key}_URL"] = asset.fetch("url", "#{info.fetch('UPSTREAM')}/releases/download/#{info.fetch('TAG')}/#{asset.fetch('file')}")
-        sources << { "asset" => key, "path" => path.to_s, "sha256" => digest }
+        source = { "asset" => key, "sha256" => digest }
+        # An aggregated package survives under its release filename; the
+        # finalizer's temporary staging path does not survive the rename.
+        if packages.key?(asset.fetch("file"))
+          source["package"] = asset.fetch("file")
+        else
+          source["path"] = path.to_s
+        end
+        sources << source
       end
     end
 
@@ -246,6 +270,48 @@ module NativePackages
         payload.mkpath
         FileUtils.cp(source, payload / source.basename)
       end
+    end
+
+    def write_recipes(output, info)
+      recipes = output / "recipes"
+      project.generate(recipes, info)
+      project.check(recipes, prerelease: info.fetch("VERSION").include?("-"))
+      unless configuration.data.fetch("templates").empty?
+        project.recipe_archive(recipes, output, name: configuration.name, version: info.fetch("VERSION"), epoch: info.fetch("SOURCE_DATE_EPOCH"))
+        (output / "packaging-checksums.txt").delete
+      end
+    end
+
+    def verify_recipes(output, manifest, complete:)
+      if manifest.key?("recipes")
+        phase = manifest.fetch("recipes")
+        unless phase.is_a?(Hash) && phase["state"] == "deferred" && phase["metadata"].is_a?(Hash)
+          raise Error, "invalid recipe phase"
+        end
+        info = phase.fetch("metadata")
+        unless info.values_at("NAME", "VERSION", "SOURCE_DATE_EPOCH") == manifest.values_at("name", "version", "epoch")
+          raise Error, "deferred recipe metadata disagrees with build"
+        end
+        package_paths = manifest.fetch("packages").map { |entry| entry.fetch("path") }
+        raise Error, "deferred build contains recipe files" unless (manifest.fetch("files").keys - package_paths).empty?
+        raise Error, "recipes are deferred; aggregate with --finalize-recipes before publishing" if complete
+        return
+      end
+      # Require the recipe files as well as hashes, so dropping the deferred
+      # marker cannot make an unfinished build appear publishable.
+      required = ["recipes/release.json"]
+      raise Error, "missing recipe metadata" unless manifest.fetch("files").key?(required.first)
+      info = JSON.parse((output / required.first).read)
+      configuration.data.fetch("templates").each_key do |path|
+        relative = render(path, info.merge("ROOT" => root.to_s))
+        required << "recipes/#{relative_path(relative)}"
+        required << "recipes/#{File.dirname(relative)}/.SRCINFO" if relative.match?(%r{\Aarch/[^/]+/PKGBUILD\z})
+      end
+      unless configuration.data.fetch("templates").empty?
+        required << "#{configuration.name}-#{manifest.fetch('version')}-packaging.tar.xz"
+      end
+      missing = required - manifest.fetch("files").keys
+      raise Error, "missing recipe outputs: #{missing.join(', ')}" unless missing.empty?
     end
 
     def verify(output, complete: true)
@@ -271,6 +337,7 @@ module NativePackages
       manifest.fetch("packages").each do |entry|
         raise Error, "package hash does not match file manifest" unless entry.fetch("sha256") == manifest.fetch("files").fetch(entry.fetch("path"))
       end
+      verify_recipes(output, manifest, complete: complete)
       manifest
     end
 
@@ -304,7 +371,7 @@ module NativePackages
       end
     end
 
-    def aggregate(inputs, output:)
+    def aggregate(inputs, output:, finalize_recipes: false)
       configuration.validate
       output = Pathname.new(output).expand_path(root)
       raise Error, "output exists: #{output}" if output.exist?
@@ -313,6 +380,14 @@ module NativePackages
       raise Error, "supply builds to aggregate" if manifests.empty?
       %w[version epoch tool].each do |key|
         raise Error, "builds disagree on #{key}" unless manifests.map { |entry| entry.fetch(key) }.uniq.length == 1
+      end
+      phases = manifests.map { |entry| entry["recipes"] }
+      if phases.any?
+        raise Error, "do not mix deferred and completed recipe builds" if phases.any?(&:nil?)
+        raise Error, "deferred recipe metadata differs between builds" unless phases.uniq.length == 1
+        raise Error, "deferred builds require --finalize-recipes" unless finalize_recipes
+      elsif finalize_recipes
+        raise Error, "--finalize-recipes requires builds made with --defer-recipes"
       end
       result = Marshal.load(Marshal.dump(manifests.first))
       result.merge!("targets" => {}, "packages" => [], "files" => {}, "inputs" => manifests.flat_map { |entry| entry.fetch("inputs") }.uniq)
@@ -337,6 +412,21 @@ module NativePackages
         end
         configuration.targets.each do |id, target|
           result["targets"][id] = target.fetch("formats").select { |format| result["targets"].fetch(id, []).include?(format) }
+        end
+        if finalize_recipes
+          expected = configuration.targets.transform_values { |target| target.fetch("formats") }
+          raise Error, "incomplete target set; aggregate all configured targets before finalizing recipes" unless result.fetch("targets") == expected
+          recipe_tools
+          info = result.fetch("recipes").fetch("metadata").merge("ROOT" => root.to_s)
+          packages = result.fetch("packages").each_with_object({}) do |entry, paths|
+            name = File.basename(entry.fetch("path"))
+            raise Error, "ambiguous recipe asset filename: #{name}" if paths.key?(name)
+            paths[name] = staging / entry.fetch("path")
+          end
+          acquire_assets(info, nil, result.fetch("inputs"), packages: packages)
+          write_recipes(staging, info)
+          result.delete("recipes")
+          result["files"] = files(staging).to_h { |file| [file.relative_path_from(staging).to_s, sha256(file)] }
         end
         write(staging / "build.json", JSON.pretty_generate(result) + "\n")
         write(staging / "packaging-checksums.txt", files(staging).map { |file| "#{sha256(file)}  #{file.relative_path_from(staging)}\n" }.join)

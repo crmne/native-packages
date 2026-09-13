@@ -65,3 +65,62 @@ native-packages publish --from dist/complete --to github
 ```
 
 Each build must use the same configuration, release version and timestamp. Aggregate rejects duplicate target/format outputs, conflicting recipe files and incomplete sets. Publishing recipes can still use the existing reviewed sequence: `stage TARGET DIRECTORY/recipes`, `diff TARGET`, then `publish TARGET --body-file FILE` where required by a submission destination.
+
+
+## Deferred recipe generation (unreleased)
+
+On `main`, after 0.3.1, use this opt-in sequence when downstream recipes depend
+on packages built in separate jobs. The existing build and aggregate commands
+keep generating and checking recipes as before when the new flags are absent.
+There are no new configuration keys.
+
+```sh
+# Run each target on its required host, with the same checkout and epoch.
+native-packages doctor --target linux-amd64 --defer-recipes
+native-packages build --version 1.2.3 --target linux-amd64 --defer-recipes --output dist/linux
+native-packages build --version 1.2.3 --target macos-universal --defer-recipes --output dist/macos
+native-packages build --version 1.2.3 --target windows-amd64 --defer-recipes --output dist/windows
+
+# Download those build directories and remaining recipe assets onto Linux.
+native-packages aggregate dist/linux dist/macos dist/windows --finalize-recipes --output dist/complete
+# Run the application's package installation/upgrade/removal checks here.
+native-packages publish --from dist/complete --to github,aur,homebrew
+```
+
+A deferred build still validates configuration, selected inputs, architecture,
+container contents and signing hooks. It does not acquire the global `assets`
+or generate `templates`. `doctor --defer-recipes` likewise omits recipe tooling;
+the selected package formats still need their own tools. Asset filenames and
+URLs are available as tokens, but unknown `@KEY_SHA256@` values cannot be used
+by a target's input, package definition or hooks. Such a target must use the
+normal build path with its assets already available. Release-mode target inputs
+still require their published checksums, even with `--defer-recipes`.
+
+The finalizer first verifies every input manifest and the complete target set.
+All inputs must defer recipes and agree on configuration, version, timestamp,
+tool and recipe metadata, including Git version. Use the same Git history depth
+and `SOURCE_DATE_EPOCH` on every host. Mixing ordinary and deferred builds fails.
+Neither a partial target set nor a deferred build can be published. An ordinary
+aggregate rejects deferred inputs unless `--finalize-recipes` is supplied.
+
+For each global asset, finalization first looks for a verified package whose
+release filename exactly matches the asset's rendered `file`. For example,
+`assets.MACOS.file: app-v@VERSION@-macos-universal.dmg` resolves to a native target
+with that output filename. Its hash includes the completed signing/notarization
+hook. A stale `local` file cannot override that package. Duplicate package
+filenames are rejected. The manifest records this asset by package filename
+and digest, without a temporary staging path.
+
+Other assets, such as portable or source archives, must be staged at their
+configured `local` paths on the finalization host. Finalization reads local
+inputs and does not download recipe assets from a release. This also applies
+when the deferred target builds used `--release`. Recipe tools run only here:
+AUR templates require makepkg or working Docker, and recipe archives require
+tar and xz. The finalizer renders and validates recipes, writes the recipe
+archive and complete manifest, and atomically creates a fresh output directory.
+Failure leaves the original target directories intact and creates no completed
+output. Existing destinations are never overwritten.
+
+Deferral does not enable stable downstream recipes in a prerelease configuration.
+The existing preview-format and stable-recipe restrictions still apply. Use a
+preview configuration without downstream templates when building previews.

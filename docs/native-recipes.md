@@ -43,7 +43,13 @@ targets:
 
 Run each target on its own host using `build --version VERSION --target ID`.
 Use the normal `aggregate` command to combine complete target results later.
-Use the same configuration and `SOURCE_DATE_EPOCH` across jobs. No nFPM binary
+Use the same configuration and `SOURCE_DATE_EPOCH` across jobs.
+On `main`, after 0.3.1, configurations with AUR/Homebrew recipes can use
+`build --defer-recipes` on each host, then `aggregate --finalize-recipes` on
+Linux. This avoids requiring the finished DMG before its own build or running
+AUR tools on macOS/Windows. The finalizer resolves recipe assets from the
+completed package filenames and locally staged external assets. See
+[deferred recipe generation](configuration.md#deferred-recipe-generation-unreleased). No nFPM binary
 is required when only native targets are selected; its version remains part of
 the configuration for compatibility with mixed Linux/native builds.
 

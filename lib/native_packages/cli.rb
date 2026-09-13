@@ -13,7 +13,9 @@ module NativePackages
         build [--version VERSION | --release TAG]  Build all configured packages
           [--target ID] [--format FORMAT]          Select targets/formats (repeatable)
           [--output DIRECTORY] [--dry-run]         Choose output or inspect the plan
+          [--defer-recipes]                        Build targets without recipe assets/tools
         aggregate DIR... --output DIRECTORY        Combine target builds before publishing
+          [--finalize-recipes]                    Generate recipes from deferred builds
         publish --from DIRECTORY --to github,aur   Publish a complete, verified build
         migrate [--dry-run]                        Convert packaging/project.yml
         repositories                               List downstream destinations
@@ -50,11 +52,13 @@ module NativePackages
           flags.on("--target ID") { |value| options[:ids] << value }
           flags.on("--format FORMAT") { |value| options[:formats] << value }
           flags.on("--release TAG") { |value| options[:release] = value }
+          flags.on("--defer-recipes") { options[:defer_recipes] = true }
         end
         if command == "build"
           flags.on("--version VERSION") { |value| options[:value] = value }
           flags.on("--dry-run") { options[:dry_run] = true }
         end
+        flags.on("--finalize-recipes") { options[:finalize_recipes] = true } if command == "aggregate"
         if command == "init"
           flags.on("--interactive") { options[:interactive] = true }
           flags.on("--name NAME") { |value| options[:name] = value }
@@ -88,13 +92,13 @@ module NativePackages
         raise Error, "create native-packages.yaml with init, or convert existing packaging with migrate" unless configuration
         builder = Build.new(configuration)
         case command
-        when "build" then return builder.run_build(**options.slice(:value, :release, :ids, :formats, :output, :dry_run))
+        when "build" then return builder.run_build(**options.slice(:value, :release, :ids, :formats, :output, :dry_run, :defer_recipes))
         when "doctor"
-          builder.doctor(**options.slice(:ids, :formats, :release))
+          builder.doctor(**options.slice(:ids, :formats, :release, :defer_recipes))
           return puts "Configuration and packaging tools are ready. Build checks input files and package contents."
         when "aggregate"
           raise Error, "aggregate requires --output" unless options[:output]
-          return builder.aggregate(arguments, output: options.fetch(:output))
+          return builder.aggregate(arguments, output: options.fetch(:output), finalize_recipes: options.fetch(:finalize_recipes, false))
         when "publish" then return builder.publish(options.fetch(:from), options.fetch(:destinations), body_file: options[:body_file])
         end
       end

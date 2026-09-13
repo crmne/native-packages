@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Add opt-in `build --defer-recipes` and `aggregate --finalize-recipes` so native
+  targets can build without global recipe assets or AUR tools. Generate stable
+  downstream recipes once from the completed packages and locally staged assets.
+- Reject publication of unfinished recipes and retain complete target, metadata
+  and checksum verification across the deferred build and finalization phases.
+
 ## 0.3.1 (2026-09-13)
 
 - Keep checkout-local `ROOT` tokens out of shared release metadata so packages

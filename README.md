@@ -84,6 +84,14 @@ Release mode verifies the declared binary assets against the release checksum fi
 
 Outputs include packages, prepared recipes, checksums and `build.json`. Publication verifies their hashes, configuration identity and complete target set. Partial builds can be combined with `aggregate DIR... --output DIRECTORY`. Native filenames come from nFPM.
 
+On `main`, after 0.3.1, `build --defer-recipes` lets each platform package its
+own inputs without acquiring global recipe assets or requiring AUR tools.
+Then `aggregate --finalize-recipes` generates the downstream recipes once,
+using hashes of the completed packages. This allows a Homebrew cask to reference
+the DMG being built in the same release. Deferred builds cannot be published.
+See [deferred recipe generation](docs/configuration.md#deferred-recipe-generation-unreleased)
+for the finalizer's inputs and checks.
+
 Optional `repositories` and `templates` sections replace the old separate registries. Existing `stage`, `diff`, `publish TARGET` and `status` commands support reviewed downstream updates. AUR uses PKGBUILD/`.SRCINFO`; Homebrew uses formulae/casks. Each destination has an independent ignored Git clone, with no application submodules or extra remotes. Native source repositories still apply their own validation and review.
 
 ## GitHub Actions
