@@ -1,0 +1,133 @@
+{
+  "schema": 1,
+  "date": "2026-09-13",
+  "version": "0.3.0",
+  "base": "3f581839028d503469247cd043bbbcc7e479a171",
+  "source_sha256": {
+    "lib/native_packages.rb": "135a098c4f5e41c9e626327d52cf66472e7ab08434be0fff192061d2c924a7e2",
+    "lib/native_packages/build.rb": "49474c4d81e47e6120455f92c219f5e2e9023f02260e9d610e885629c1e1b32b",
+    "lib/native_packages/cli.rb": "0c67e136bd7136535bf8ed83e9ec762fe0f982de88b0c0e4c431914423bcb796",
+    "lib/native_packages/configuration.rb": "e0322ad44a94124e31ec656cbdccbd5bc9b27067f7432ce56a1694d05791bb86",
+    "lib/native_packages/inspection.rb": "d58f33ed13b63f9bc80b54aae6ec1d34ece35f5b6207636bd805dd0f275a9e75",
+    "lib/native_packages/native_recipe.rb": "e58bbda25bd4c3ecb865d4b26569d8d613b831e01ec9a8a0bda18ea5549e28ff",
+    "lib/native_packages/project.rb": "a5de1a6ab10a7de0e8e4b9126b92c256f486fe5d5de207ca401f2367363fa4b6",
+    "lib/native_packages/repositories.rb": "11246905004260ae068a7642fd151b35ea42d7f7afd52757926d31e71b428ee6",
+    "lib/native_packages/scaffold.rb": "2092aefe80182f7edbbd2fc233cc9f1ed1dd52b7b0af901a7595c4243e389c8a",
+    "lib/native_packages/support.rb": "782f927eadb8df2c4663a89f911297d513d0c8a42933e91bc886f8ebd6b70e0f",
+    "test/native_acceptance.rb": "31f575081c43bfc4cbfa4e942e413c16462fa38cc5a906aa40cdac3b1ac659d5"
+  },
+  "tests": {
+    "runs": 49,
+    "assertions": 287,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0
+  },
+  "standalone_gem_check": "passed",
+  "macos": {
+    "schema": 1,
+    "tool": "0.3.0",
+    "host": "macos",
+    "arch": "arm64",
+    "fixture_only": true,
+    "install_upgrade_rollback": [
+      {
+        "expected": "1.2.3-alpha.1",
+        "observed": "1.2.3-alpha.1",
+        "binary_sha256": "420db28603289eb90cd12cce54b96fe60842668c40becbae7a34bd4a68975175",
+        "model_preserved": true
+      },
+      {
+        "expected": "1.2.3-alpha.2",
+        "observed": "1.2.3-alpha.2",
+        "binary_sha256": "39c5a966b651e06c95525da39ec57e3aa03677e8d6d85ddee6c5c84c78773a3b",
+        "model_preserved": true
+      },
+      {
+        "expected": "1.2.3",
+        "observed": "1.2.3",
+        "binary_sha256": "c5cbf27f7204a420ec05246b3f2fa166d28ffe835437b927da673b5a89c6a983",
+        "model_preserved": true
+      },
+      {
+        "expected": "1.2.3-alpha.1",
+        "observed": "1.2.3-alpha.1",
+        "binary_sha256": "420db28603289eb90cd12cce54b96fe60842668c40becbae7a34bd4a68975175",
+        "model_preserved": true
+      }
+    ],
+    "removed": true,
+    "packages": {
+      "1.2.3-alpha.1": {
+        "path": "dist/packages/1.2.3-alpha.1/packages/macos/dmg/native-fixture-v1.2.3-alpha.1-macos.dmg",
+        "sha256": "c37847374c092a61c907aca6c424482ff3edc2fae81838c00f6987cf60068480"
+      },
+      "1.2.3-alpha.2": {
+        "path": "dist/packages/1.2.3-alpha.2/packages/macos/dmg/native-fixture-v1.2.3-alpha.2-macos.dmg",
+        "sha256": "de27bd32842f6c1143abac017eb8a3199356c92ee523ece128d510ff877c449e"
+      },
+      "1.2.3": {
+        "path": "dist/packages/1.2.3/packages/macos/dmg/native-fixture-v1.2.3-macos.dmg",
+        "sha256": "6f850039751ef825f063c3cad64b652ad1876cb5f38389f293823d68ebf13d6e"
+      }
+    }
+  },
+  "windows": {
+    "schema": 1,
+    "tool": "0.3.0",
+    "host": "windows",
+    "arch": "amd64",
+    "fixture_only": true,
+    "install_upgrade_rollback": [
+      {
+        "expected": "1.2.3-alpha.1",
+        "observed": "1.2.3-alpha.1",
+        "binary_sha256": "4c8bcf9e2747a1b3a5292a10e2820d755c96e4b1971abda3e318a999b51e7310",
+        "model_preserved": true
+      },
+      {
+        "expected": "1.2.3-alpha.2",
+        "observed": "1.2.3-alpha.2",
+        "binary_sha256": "54b4e201aac51f07effb6edb3a86bf5ff235178b8fe52da6014d48a0b2468c83",
+        "model_preserved": true
+      },
+      {
+        "expected": "1.2.3",
+        "observed": "1.2.3",
+        "binary_sha256": "e41002c539cd070ceb9fa43a374bc698388fb708edb4a14f137d0528af750e87",
+        "model_preserved": true
+      },
+      {
+        "expected": "1.2.3-alpha.1",
+        "observed": "1.2.3-alpha.1",
+        "binary_sha256": "4c8bcf9e2747a1b3a5292a10e2820d755c96e4b1971abda3e318a999b51e7310",
+        "model_preserved": true
+      }
+    ],
+    "removed": true,
+    "packages": {
+      "1.2.3-alpha.1": {
+        "path": "dist/packages/1.2.3-alpha.1/packages/windows/inno/native-fixture-v1.2.3-alpha.1-windows.exe",
+        "sha256": "c29f1893364281706a41b867ae528f96a1b771f7d18317b7f0e62c8ff608d1c8"
+      },
+      "1.2.3-alpha.2": {
+        "path": "dist/packages/1.2.3-alpha.2/packages/windows/inno/native-fixture-v1.2.3-alpha.2-windows.exe",
+        "sha256": "3dc810bbece0c3746a1f22b42dd92feeb5be4a244fe2348b4c207f98fb037223"
+      },
+      "1.2.3": {
+        "path": "dist/packages/1.2.3/packages/windows/inno/native-fixture-v1.2.3-windows.exe",
+        "sha256": "f6cde4fd8136193fc485ae923baa6dc30862146bcd18c71c6487f99b4bec1813"
+      }
+    }
+  },
+  "logs_sha256": {
+    "mac-results.json": "b8255316cbaac97a373b4bc3a12df32e30f0be409b0971d896f4d82271a32054",
+    "mac.log": "9ac5889812f92de4451005fae694a92419ffe637ad944d1f93a9b455a36fca26",
+    "windows-results.json": "9a0a7ca863ab04bf775451668d6518023c6cab4e014a48602c67fb98dfa4ce65",
+    "windows.log": "f33f54753cfa6c81edd7c05c29c9092d2dd9324e6201078f3f7dda89d3c69e39",
+    "windows.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "unit-tests.log": "597dcbc11f50d8fde7ad38076f3a1c67a272f90f0b199d60405daffe34fcee87",
+    "gem-install.log": "56cf2642929222b4863d1b7c451b97b0662f847d642054bce1525882b7a2e0e0"
+  },
+  "scope": "Shared packaging fixtures; no RekordFlash installation, licensing, model inference, USB or application acceptance claim."
+}

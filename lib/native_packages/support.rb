@@ -12,7 +12,7 @@ require "tmpdir"
 require "yaml"
 
 module NativePackages
-  VERSION = "0.2.0"
+  VERSION = "0.3.0"
   class Error < StandardError; end
 
   module Support
@@ -24,7 +24,9 @@ module NativePackages
     end
 
     def capture(*arguments, env: {}, chdir: root)
-      output, error, status = Open3.capture3(env, *arguments.map(&:to_s), chdir: chdir.to_s)
+      # Native tools can emit UTF-8 progress even when an SSH session declares
+      # US-ASCII. Preserve those bytes; locale-dependent strip would raise.
+      output, error, status = Open3.capture3(env, *arguments.map(&:to_s), chdir: chdir.to_s, binmode: true)
       raise Error, "#{arguments.first} failed: #{error.strip}" unless status.success?
       output.strip
     end
@@ -36,9 +38,13 @@ module NativePackages
       end
     end
 
-    def version_arg(value)
+    def version_arg(value, prerelease: false)
       version = value.delete_prefix("v")
-      raise Error, "expected a stable version such as 1.2.3" unless /\A(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\z/.match?(version)
+      stable = /\A(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\z/.match?(version)
+      preview = prerelease && /\A(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-(alpha|beta|rc)\.[1-9]\d*\z/.match?(version)
+      unless stable || preview
+        raise Error, prerelease ? "expected 1.2.3 or 1.2.3-alpha.N, -beta.N or -rc.N" : "expected a stable version such as 1.2.3"
+      end
       version
     end
 

@@ -19,6 +19,12 @@
 
 ## Targets
 
+Version 0.3 additionally accepts macOS `dmg` and Windows `inno` targets with an
+application-owned `native.command` and `native.output`. These consume local
+prepared directories on their native host, with no nFPM executable required.
+See [native recipes](native-recipes.md) for the complete contract and examples.
+The nFPM targets below retain their existing behavior.
+
 A target declares `platform` (`linux` or `windows`), `arch` (nFPM/Go architecture name), `formats`, and `input`. `kind` defaults to `binary`; `data` permits packages without executables, and `source` is required for a separate SRPM target. Linux binaries declare `libc` as `glibc`, `musl` or `static`. IPK also requires an `abi` label identifying the device/distribution baseline.
 
 A target's optional `nfpm` mapping overrides the shared definition. Maps merge recursively; lists replace in full. Package name, version, platform and architecture must not conflict with their canonical declarations. Format-specific architecture overrides belong in the corresponding nFPM section. Distinct target inputs must be supplied for incompatible ABIs or platforms.
@@ -41,7 +47,7 @@ Strings can contain `@NAME@`, `@VERSION@`, `@TAG@`, `@DATE@`, `@SOURCE_DATE_EPOC
 
 Additional `assets` retain the existing `file`, optional `url`, and `checksummed` fields. Local builds require `local` paths for these assets. Release builds download and hash them, checking the published checksum unless `checksummed: false` is explicitly set for a source asset. Each contributes `@KEY_FILE@`, `@KEY_URL@` and `@KEY_SHA256@` to recipe rendering. Unresolved tokens fail validation/build.
 
-Omitting `--version` requires an exact stable release tag at HEAD. `--release` supplies the version and conflicts with a different `--version`. Stable versions currently use `vMAJOR.MINOR.PATCH`; prerelease tags are rejected. Build timestamps use `SOURCE_DATE_EPOCH`, otherwise the relevant Git commit timestamp, otherwise the current time for projects without Git metadata. Supply `SOURCE_DATE_EPOCH` for repeatable builds outside Git.
+Omitting `--version` requires an exact supported release tag at HEAD. `--release` supplies the version and conflicts with a different `--version`. Versions default to stable `vMAJOR.MINOR.PATCH`. Setting `release.prereleases: true` additionally permits `-alpha.N`, `-beta.N` and `-rc.N` for DEB/RPM/DMG/Inno builds without downstream recipes; preview upload requires an existing GitHub prerelease. Native directory recipes use local `--version` mode. Build timestamps use `SOURCE_DATE_EPOCH`, otherwise the relevant Git commit timestamp, otherwise the current time for projects without Git metadata. Supply `SOURCE_DATE_EPOCH` for repeatable builds outside Git.
 
 ## Output and publication
 

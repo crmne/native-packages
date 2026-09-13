@@ -103,11 +103,11 @@ module NativePackages
       write(output / "release.json", JSON.pretty_generate(metadata.sort.to_h) + "\n")
     end
 
-    def check(output)
+    def check(output, prerelease: false)
       output = Pathname.new(output).expand_path
       metadata = JSON.parse((output / "release.json").read)
       raise Error, "prepared recipes belong to another project" unless metadata.fetch("NAME") == package_name
-      version_arg(metadata.fetch("VERSION"))
+      version_arg(metadata.fetch("VERSION"), prerelease: prerelease)
       Dir.mktmpdir("native-packages-check-") do |temporary|
         expected = Pathname.new(temporary)
         generate(expected, metadata)

@@ -56,6 +56,19 @@ Linux binary targets declare `libc: glibc`, `musl` or `static`. The tool inspect
 
 See [configuration and commands](docs/configuration.md) for tokens, release assets, hooks, version selection and publishing, and [platform coverage](docs/platforms.md) for each format's requirements.
 
+Version 0.3 adds [native DMG and Inno recipes](docs/native-recipes.md). These run
+the application's existing packaging commands on macOS or Windows, using the
+same verified build manifests as Linux packages. Native recipes consume prepared
+directories and need no nFPM installation. The gem checks Mach-O/PE architecture,
+preserves safe internal bundle links and hashes the output after signing hooks.
+App compilation, installer policy and signing identities stay in the application
+repository.
+
+Preview package versions are explicit: set `release.prereleases: true` to build
+`1.2.3-alpha.N`, `-beta.N` or `-rc.N` for DEB/RPM/DMG/Inno. Other formats and
+downstream recipe publication remain stable-only. Uploads require an existing
+GitHub release already marked as a prerelease.
+
 The [all-formats example](examples/native-packages-all-formats.yaml) shows separate Linux, OpenWrt, Windows and source inputs, including MSIX identity/assets and an SRPM source/spec layout.
 
 ## Release inputs and publication
@@ -82,7 +95,7 @@ packaging:
   needs: release
   permissions:
     contents: write
-  uses: crmne/native-packages/.github/workflows/package.yml@v0.2.0
+  uses: crmne/native-packages/.github/workflows/package.yml@v0.3.0
   with:
     version: ${{ github.ref_name }}
     publish: true
@@ -108,7 +121,7 @@ Migration combines `packaging/project.yml`, its nFPM definition and repository r
 bundle install
 bundle exec ruby -Ilib -e 'Dir["test/*_test.rb"].sort.each { |path| require_relative path }'
 gem build native-packages.gemspec
-ruby test/gem_install.rb native-packages-0.2.0.gem
+ruby test/gem_install.rb native-packages-0.3.0.gem
 ```
 
 Tests build real packages, inspect their payloads and exercise repository publication against local Git fixtures. CI additionally runs disposable Linux install/upgrade/remove checks, SRPM rebuilds and Windows MSIX acceptance. Runtime build manifests report installation as `not-tested`: CI fixture coverage is not a substitute for testing each application's packages.

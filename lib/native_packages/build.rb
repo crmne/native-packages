@@ -2,6 +2,7 @@
 
 require_relative "configuration"
 require_relative "inspection"
+require_relative "native_recipe"
 
 module NativePackages
   class Build
@@ -29,7 +30,12 @@ module NativePackages
     def doctor(ids: [], formats: [], release: false)
       configuration.validate
       selected = configuration.select(ids: ids, formats: formats)
-      nfpm_version unless selected.empty?
+      nfpm_version if selected.values.any? { |target| (target.fetch("formats") & Configuration::NATIVE_FORMATS).empty? }
+      selected.each do |id, target|
+        next unless target["native"]
+        metadata = configuration.target_tokens(configuration.tokens("9.8.7"), id, target, "/payload").merge("PACKAGE" => "/output/package", "FORMAT" => target.fetch("formats").first)
+        NativeRecipe.new(root).doctor(target, render_tree(target.fetch("native").fetch("command"), metadata))
+      end
       required = []
       required << "readelf" if selected.values.any? { |target| target["platform"] == "linux" && target.fetch("kind", "binary") == "binary" }
       required << "bsdtar" if selected.values.any? { |target| target.fetch("input").fetch("kind", "archive") == "archive" }
@@ -44,12 +50,12 @@ module NativePackages
     end
 
     def version(value, release)
-      if release && value && version_arg(value) != version_arg(release)
+      if release && value && configuration.package_version(value) != configuration.package_version(release)
         raise Error, "--release and --version disagree"
       end
       value ||= release
       value ||= capture("git", "describe", "--exact-match", "--tags", "HEAD")
-      version_arg(value)
+      configuration.package_version(value)
     rescue Error => error
       raise error if value
       raise Error, "no exact release tag at HEAD; supply --version"
@@ -71,10 +77,14 @@ module NativePackages
       configuration.validate
       selected = configuration.select(ids: ids, formats: formats)
       number = version(value, release)
+      configuration.check_prerelease(number, selected)
+      if release && selected.values.any? { |target| target["native"] }
+        raise Error, "native recipes consume local prepared directories; use --version with native build artifacts"
+      end
       output = Pathname.new(output || root / "dist/packages" / number).expand_path(root)
       if dry_run
         puts JSON.pretty_generate("version" => number, "mode" => release ? "release" : "local", "output" => output.to_s,
-          "targets" => selected.transform_values { |target| target.slice("formats", "platform", "arch", "input", "before_build", "after_package") })
+          "targets" => selected.transform_values { |target| target.slice("formats", "platform", "arch", "input", "before_build", "after_package", "native") })
         return
       end
       raise Error, "output exists: #{output}; choose a fresh --output" if output.exist?
@@ -98,27 +108,53 @@ module NativePackages
           if source.directory? && (output.to_s == source.expand_path.to_s || output.to_s.start_with?(source.expand_path.to_s + File::SEPARATOR))
             raise Error, "package output must be outside the input directory"
           end
-          sources << { "target" => id, "path" => source.to_s, "sha256" => input_digest(source) }
+          native = target["native"] && NativeRecipe.new(root)
+          digest = native ? native.digest(source) : input_digest(source)
+          sources << { "target" => id, "path" => source.to_s, "sha256" => digest }
           Dir.mktmpdir("native-packages-input-") do |directory|
             payload = Pathname.new(directory) / "payload"
-            copy_input(source, payload, input.fetch("kind", "archive"))
+            if native
+              FileUtils.cp_r(source, payload, preserve: true)
+              raise Error, "native input changed while staging" unless native.digest(payload) == digest
+            else
+              copy_input(source, payload, input.fetch("kind", "archive"))
+            end
             target.fetch("formats").each do |format|
-              package = render_tree(configuration.package(target), configuration.target_tokens(info, id, target, payload))
-              package.merge!("name" => configuration.name, "version" => number, "arch" => target.fetch("arch"),
-                "platform" => target.fetch("platform"), "mtime" => info.fetch("DATE"))
-              inspection = Inspection.new(root, configuration.data.fetch("libraries")).check(package, target, format)
-              config_path = Pathname.new(directory) / "nfpm.yaml"
-              write(config_path, YAML.dump(package))
               destination = staging / "packages" / id / format
               destination.mkpath
-              run "nfpm", "package", "--config", config_path, "--packager", format, "--target", destination,
-                env: { "SOURCE_DATE_EPOCH" => info.fetch("SOURCE_DATE_EPOCH").to_s }
-              packages = files(destination)
-              raise Error, "nFPM did not create exactly one #{format} package" unless packages.length == 1
+              if native
+                inspection = native.inspect(payload, target)
+                recipe = target.fetch("native")
+                tokens = configuration.target_tokens(info, id, target, payload)
+                package_path = destination / render(recipe.fetch("output"), tokens)
+                run(*render_tree(recipe.fetch("command"), tokens.merge("PACKAGE" => package_path.to_s, "FORMAT" => format)),
+                  env: { "SOURCE_DATE_EPOCH" => info.fetch("SOURCE_DATE_EPOCH").to_s, "NATIVE_PACKAGES_TARGET" => id, "NATIVE_PACKAGES_VERSION" => number })
+                packages = files(destination)
+                raise Error, "native recipe must create only its declared output" unless packages == [package_path]
+                native.check_output(package_path, format)
+              else
+                package = render_tree(configuration.package(target), configuration.target_tokens(info, id, target, payload))
+                if number.include?("-") && (package.fetch("version_schema", "semver") != "semver" || %w[prerelease version_metadata].any? { |key| package.key?(key) && !package[key].to_s.empty? })
+                  raise Error, "prerelease package versions must use unmodified nFPM semver conversion"
+                end
+                package.merge!("name" => configuration.name, "version" => number, "arch" => target.fetch("arch"),
+                  "platform" => target.fetch("platform"), "mtime" => info.fetch("DATE"))
+                inspection = Inspection.new(root, configuration.data.fetch("libraries")).check(package, target, format)
+                config_path = Pathname.new(directory) / "nfpm.yaml"
+                write(config_path, YAML.dump(package))
+                run "nfpm", "package", "--config", config_path, "--packager", format, "--target", destination,
+                  env: { "SOURCE_DATE_EPOCH" => info.fetch("SOURCE_DATE_EPOCH").to_s }
+                packages = files(destination)
+                raise Error, "nFPM did not create exactly one #{format} package" unless packages.length == 1
+              end
               if target["after_package"]
                 signing = configuration.target_tokens(info, id, target, payload).merge("PACKAGE" => packages.first.to_s, "FORMAT" => format)
                 run(*render_tree(target.fetch("after_package"), signing), env: { "NATIVE_PACKAGES_TARGET" => id, "NATIVE_PACKAGES_VERSION" => number })
                 raise Error, "after_package must preserve the package path and output set" unless files(destination) == packages
+              end
+              if native
+                native.check_output(packages.first, format)
+                raise Error, "native recipes/signing must not change their input payload" unless native.digest(payload) == digest
               end
               records << { "target" => id, "format" => format, "path" => packages.first.relative_path_from(staging).to_s,
                 "sha256" => sha256(packages.first), "validation" => inspection }
@@ -127,7 +163,7 @@ module NativePackages
         end
         recipes = staging / "recipes"
         project.generate(recipes, info)
-        project.check(recipes)
+        project.check(recipes, prerelease: number.include?("-"))
         if !configuration.data.fetch("templates").empty?
           project.recipe_archive(recipes, staging, name: configuration.name, version: number, epoch: info.fetch("SOURCE_DATE_EPOCH"))
           (staging / "packaging-checksums.txt").delete
@@ -217,7 +253,9 @@ module NativePackages
       manifest = JSON.parse((output / "build.json").read)
       raise Error, "unsupported build manifest" unless manifest.fetch("schema") == 1
       raise Error, "build belongs to another project/configuration" unless manifest.fetch("name") == configuration.name && manifest.fetch("configuration") == configuration.digest
-      version_arg(manifest.fetch("version"))
+      number = configuration.package_version(manifest.fetch("version"))
+      selected = configuration.select(ids: manifest.fetch("targets").keys)
+      configuration.check_prerelease(number, selected)
       expected = configuration.targets.transform_values { |target| target.fetch("formats") }
       raise Error, "incomplete target set; aggregate all configured targets before publishing" if complete && manifest.fetch("targets") != expected
       expected_pairs = manifest.fetch("targets").flat_map { |id, formats| formats.map { |format| [id, format] } }.sort
@@ -242,6 +280,11 @@ module NativePackages
       manifest = verify(output)
       raise Error, "supply at least one --to destination" if destinations.empty?
       destinations.each { |name| project.repositories.select(name) unless name == "github" }
+      if manifest.fetch("version").include?("-")
+        raise Error, "prereleases can only attach to an existing GitHub prerelease" unless destinations == ["github"]
+        marked = capture("gh", "release", "view", "v#{manifest.fetch('version')}", "--repo", project.repository, "--json", "isPrerelease", "--jq", ".isPrerelease")
+        raise Error, "destination release must already be marked prerelease" unless marked == "true"
+      end
       destinations.each do |destination|
         if destination == "github"
           paths = manifest.fetch("packages").map { |entry| output / entry.fetch("path") }

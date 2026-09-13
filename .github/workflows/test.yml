@@ -37,7 +37,7 @@ jobs:
           bundle exec ruby -Ilib exe/native-packages --help
           bundle exec ruby -Ilib exe/native-packages --version
           gem build native-packages.gemspec
-          ruby test/gem_install.rb native-packages-0.2.0.gem
+          ruby test/gem_install.rb native-packages-0.3.0.gem
       - uses: actions/upload-artifact@v4
         with:
           name: gem-ruby-${{ matrix.ruby }}
@@ -79,3 +79,16 @@ jobs:
       - name: Build, sign, install, upgrade and remove MSIX
         shell: pwsh
         run: ./test/windows_acceptance.ps1
+      - name: Build, install, upgrade, roll back and remove Inno fixtures
+        shell: pwsh
+        run: ./test/native_windows_acceptance.ps1
+
+  macos-install:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '4.0'
+      - name: Build, verify, install, upgrade, roll back and remove DMG fixtures
+        run: ruby -Ilib test/native_acceptance.rb "$RUNNER_TEMP/native-dmg-acceptance"

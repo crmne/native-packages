@@ -5,7 +5,8 @@ require_relative "project"
 module NativePackages
   class Configuration
     include Support
-    FORMATS = %w[deb rpm archlinux apk ipk msix srpm].freeze
+    NATIVE_FORMATS = %w[dmg inno].freeze
+    FORMATS = (%w[deb rpm archlinux apk ipk msix srpm] + NATIVE_FORMATS).freeze
     NFPM_VERSION = "2.47.0"
     NAMES = %w[native-packages.yaml native-packages.yml].freeze
     KEYS = %w[schema tool nfpm targets release assets templates repositories revisions libraries version_file version_section].freeze
@@ -53,6 +54,15 @@ module NativePackages
     def targets = data.fetch("targets")
     def digest = OpenSSL::Digest::SHA256.hexdigest(JSON.generate(data))
     def package(target) = merge(data.fetch("nfpm"), target.fetch("nfpm", {}))
+    def package_version(value) = version_arg(value, prerelease: data.fetch("release").fetch("prereleases", false))
+
+    def check_prerelease(version, selected)
+      return unless version.include?("-")
+      raise Error, "prerelease builds require release.prereleases: true" unless data.fetch("release")["prereleases"] == true
+      unless selected.values.all? { |target| (target.fetch("formats") - %w[deb rpm dmg inno]).empty? } && data.fetch("templates").empty?
+        raise Error, "prereleases support deb, rpm, dmg and inno only, without downstream recipes"
+      end
+    end
 
     def project
       config = { "version" => 1, "name" => name, "repository" => data.fetch("release").fetch("repository", ""),
@@ -69,21 +79,44 @@ module NativePackages
         raise Error, "configuration needs native-packages #{wanted}; run gem install native-packages -v #{wanted}, then native-packages _#{wanted}_ COMMAND"
       end
       raise Error, "unsupported nFPM version; use #{NFPM_VERSION}" unless data.fetch("tool").fetch("nfpm") == NFPM_VERSION
+      if data.fetch("release").key?("prereleases") && ![true, false].include?(data.fetch("release")["prereleases"])
+        raise Error, "release.prereleases must be true or false"
+      end
       metadata = tokens("9.8.7", epoch: 1_767_225_600)
       targets.each do |id, target|
         raise Error, "invalid target name: #{id}" unless /\A[a-z0-9][a-z0-9-]*\z/.match?(id)
-        unknown = target.keys - %w[platform arch libc abi kind formats input nfpm before_build after_package compiler_target]
+        unknown = target.keys - %w[platform arch libc abi kind formats input nfpm before_build after_package compiler_target native]
         raise Error, "targets.#{id}: unknown fields #{unknown.join(', ')}" unless unknown.empty?
         formats = target.fetch("formats")
         unless formats.is_a?(Array) && !formats.empty? && formats.uniq == formats && (formats - FORMATS).empty?
           raise Error, "targets.#{id}.formats: choose from #{FORMATS.join(', ')}"
         end
-        raise Error, "targets.#{id}.platform: use linux or windows" unless %w[linux windows].include?(target.fetch("platform"))
+        raise Error, "targets.#{id}.platform: use linux, windows or macos" unless %w[linux windows macos].include?(target.fetch("platform"))
         raise Error, "targets.#{id}.arch: expected an architecture" unless /\A[a-zA-Z0-9_+-]+\z/.match?(target.fetch("arch"))
         kind = target.fetch("kind", "binary")
         raise Error, "targets.#{id}.kind: use binary, data or source" unless %w[binary data source].include?(kind)
         raise Error, "#{id}: MSIX requires a Windows target with only msix format" if formats.include?("msix") && (target["platform"] != "windows" || formats != ["msix"])
-        raise Error, "#{id}: Windows targets require msix" if target["platform"] == "windows" && formats != ["msix"]
+        raise Error, "#{id}: Windows targets require msix or inno" if target["platform"] == "windows" && ![["msix"], ["inno"]].include?(formats)
+        raise Error, "#{id}: macOS targets require dmg" if target["platform"] == "macos" && formats != ["dmg"]
+        native = !(formats & NATIVE_FORMATS).empty?
+        if native
+          expected = { "dmg" => "macos", "inno" => "windows" }[formats.first]
+          raise Error, "#{id}: native formats require a separate binary target on their native platform" unless formats.length == 1 && expected == target["platform"] && kind == "binary"
+          recipe = mapping(target.fetch("native"), "#{id}.native")
+          raise Error, "#{id}.native: expected command and output" unless recipe.keys.sort == %w[command output]
+          command = recipe["command"]
+          unless command.is_a?(Array) && !command.empty? && command.all? { |part| part.is_a?(String) } && command.any? { |part| part.include?("@PACKAGE@") }
+            raise Error, "#{id}.native.command: use command arguments including @PACKAGE@"
+          end
+          filename = render(recipe.fetch("output"), target_tokens(metadata, id, target, "/payload"))
+          extension = formats == ["dmg"] ? ".dmg" : ".exe"
+          unless /\A[a-zA-Z0-9][a-zA-Z0-9._+-]*\z/.match?(filename) && filename.end_with?(extension)
+            raise Error, "#{id}.native.output: expected a safe #{extension} filename"
+          end
+          render_tree(command, target_tokens(metadata, id, target, "/payload").merge("PACKAGE" => "/output/#{filename}", "FORMAT" => formats.first))
+        elsif target.key?("native")
+          raise Error, "#{id}: native commands require a dmg or inno target"
+        end
         raise Error, "#{id}: SRPM requires a separate source target" if (formats.include?("srpm") && (kind != "source" || formats != ["srpm"])) || (kind == "source" && formats != ["srpm"])
         if kind == "binary" && target["platform"] == "linux"
           raise Error, "#{id}.libc: declare glibc, musl or static" unless %w[glibc musl static].include?(target["libc"])
@@ -92,12 +125,14 @@ module NativePackages
         input = mapping(target.fetch("input"), "#{id}.input")
         raise Error, "#{id}.input: declare local or release_asset" unless input["local"] || input["release_asset"]
         raise Error, "#{id}.input.kind: use file, directory or archive" unless %w[file directory archive].include?(input.fetch("kind", "archive"))
+        raise Error, "#{id}: native packaging requires an input directory" if native && input.fetch("kind", "archive") != "directory"
+        raise Error, "#{id}: native packaging requires input.local" if native && !input["local"]
         %w[before_build after_package].each do |key|
           hook = target[key]
           raise Error, "#{id}.#{key}: use a nonempty array of command arguments" if hook && (!hook.is_a?(Array) || hook.empty? || !hook.all? { |part| part.is_a?(String) })
         end
         rendered = render_tree(package(target), target_tokens(metadata, id, target, "/payload"))
-        raise Error, "#{id}: nfpm.contents must be an array" unless rendered["contents"].is_a?(Array)
+        raise Error, "#{id}: nfpm.contents must be an array" unless native || rendered["contents"].is_a?(Array)
         %w[maintainer description license].each do |key|
           raise Error, "#{id}: fill in nfpm.#{key}" unless rendered[key].is_a?(String) && !rendered[key].strip.empty?
         end

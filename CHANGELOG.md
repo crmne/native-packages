@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0 (unreleased)
+
+- Add opt-in alpha, beta and release-candidate package versions for DEB/RPM and
+  native DMG/Inno targets. Keep legacy/default versions stable-only, and require
+  an existing GitHub prerelease before attaching preview packages.
+- Coordinate application-owned DMG and Inno Setup commands on their native hosts,
+  with copied inputs, architecture checks, output/container validation, signing
+  hooks and complete-build manifests, aggregation and checksums.
+- Preserve internal bundle symlinks while rejecting escaping or dangling links;
+  verify copied payloads and reject native recipes that modify them.
+- Handle native command output independently of an SSH session's text locale.
+- Add native install, upgrade, rollback and removal fixtures. Fixture results do
+  not certify a packaged application or replace its platform acceptance tests.
+
 ## 0.2.0
 
 - Add an installable CLI with `init`, `doctor`, `build`, `aggregate` and configuration migration.
