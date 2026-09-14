@@ -18,6 +18,7 @@ module NativePackages
         aggregate DIR... --output DIRECTORY        Combine target builds before publishing
           [--finalize-recipes]                    Generate recipes from deferred builds
         publish --from DIRECTORY --to github,aur   Publish a complete, verified build
+          [--target ID]                           Require exactly these complete targets
         migrate [--dry-run]                        Convert packaging/project.yml
         repositories                               List downstream destinations
         stage TARGET DIRECTORY                     Stage prepared recipes
@@ -49,8 +50,8 @@ module NativePackages
         flags.on("--help", "-h") { puts HELP; return }
         flags.on("--output DIRECTORY") { |value| options[:output] = Pathname.new(value).expand_path(root) } if %w[build aggregate artifacts prepare notarize-macos].include?(command)
         flags.on("--body-file FILE") { |value| options[:body_file] = Pathname.new(value).expand_path(root) } if command == "publish"
+        flags.on("--target ID") { |value| options[:ids] << value } if %w[build doctor publish].include?(command)
         if %w[build doctor].include?(command)
-          flags.on("--target ID") { |value| options[:ids] << value }
           flags.on("--format FORMAT") { |value| options[:formats] << value }
           flags.on("--release TAG") { |value| options[:release] = value }
           flags.on("--defer-recipes") { options[:defer_recipes] = true }
@@ -77,6 +78,7 @@ module NativePackages
         end
       end
       parser.parse!(arguments)
+      raise Error, "publish --target requires --from" if command == "publish" && !options[:from] && !options[:ids].empty?
       arity = { "init" => 0..0, "migrate" => 0..0, "build" => 0..0, "doctor" => 0..0, "aggregate" => 1..,
         "prepare" => 1..1, "check" => 1..1, "artifacts" => 1..1, "publish-release" => 2..2,
         "notarize-macos" => 1..1, "repositories" => 0..0, "stage" => 2..2, "diff" => 1..1, "publish" => options[:from] ? 0..0 : 1..1,
@@ -104,7 +106,7 @@ module NativePackages
         when "aggregate"
           raise Error, "aggregate requires --output" unless options[:output]
           return builder.aggregate(arguments, output: options.fetch(:output), finalize_recipes: options.fetch(:finalize_recipes, false))
-        when "publish" then return builder.publish(options.fetch(:from), options.fetch(:destinations), body_file: options[:body_file])
+        when "publish" then return builder.publish(options.fetch(:from), options.fetch(:destinations), body_file: options[:body_file], ids: options[:ids])
         end
       end
       if configuration

@@ -46,7 +46,9 @@ targets:
       release_asset: my-app_@VERSION@_linux_amd64.tar.gz
 ```
 
-`build` creates all configured outputs. `--target ID` and `--format FORMAT` select a subset; repeat either option for several values. A missing target input fails the build.
+`build` creates all configured outputs. `--target ID` and `--format FORMAT` select a subset; repeat either option for several values. A missing selected target input fails the build. `publish --target ID` requires
+every format for exactly the requested targets, while publication without a
+selection still requires all configured targets.
 
 Inputs support `kind: archive` (default), `directory` or `file`. Paths resolve from the configuration directory. Targets can add `nfpm` overrides; maps merge recursively and arrays replace. `nfpm` can also reference a separate YAML file. `.yml` and `--config FILE` are supported.
 
@@ -92,7 +94,8 @@ Since 0.4.0, `build --defer-recipes` lets each platform package its
 own inputs without acquiring global recipe assets or requiring AUR tools.
 Then `aggregate --finalize-recipes` generates the downstream recipes once,
 using hashes of the completed packages. This allows a Homebrew cask to reference
-the DMG being built in the same release. Deferred builds cannot be published.
+the DMG being built in the same release. Deferred builds cannot be published. Native prerelease jobs may defer the
+stable recipes in a shared configuration; those recipes remain stable-only.
 See [deferred recipe generation](docs/configuration.md#deferred-recipe-generation)
 for the finalizer's inputs and checks.
 
@@ -107,7 +110,7 @@ packaging:
   needs: release
   permissions:
     contents: write
-  uses: crmne/native-packages/.github/workflows/package.yml@v0.5.1
+  uses: crmne/native-packages/.github/workflows/package.yml@v0.6.0
   with:
     version: ${{ github.ref_name }}
     publish: true
@@ -135,9 +138,14 @@ Migration combines `packaging/project.yml`, its nFPM definition and repository r
 bundle install
 bundle exec ruby -Ilib -e 'Dir["test/*_test.rb"].sort.each { |path| require_relative path }'
 gem build native-packages.gemspec
-ruby test/gem_install.rb native-packages-0.5.1.gem
+ruby test/gem_install.rb native-packages-0.6.0.gem
 ```
 
 Tests build real packages, inspect their payloads and exercise repository publication against local Git fixtures. CI additionally runs disposable Linux install/upgrade/remove checks, SRPM rebuilds and Windows MSIX acceptance. Runtime build manifests report installation as `not-tested`: CI fixture coverage is not a substitute for testing each application's packages.
 
 The [design document](docs/cli-design.md) records the agreed direction. [Gem release setup](docs/releasing.md) explains the RubyLLM-style token setup and GitHub release workflow.
+
+For one configuration spanning native hosts, select the Linux target IDs in the
+reusable workflow's `targets` input. Native release jobs use the same config
+with `build --target macos-universal --defer-recipes` on the Mac. See
+[one configuration across native hosts](docs/configuration.md#one-configuration-across-native-hosts).

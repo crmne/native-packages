@@ -161,6 +161,48 @@ class NativePackagesCLITest < Minitest::Test
     assert_raises(NativePackages::Error) { @build.aggregate([first, first], output: @root / "duplicate") }
   end
 
+  def test_explicit_publication_targets_require_every_requested_format_and_no_extra_targets
+    need_tools "nfpm"
+    @data["release"] = { "repository" => "example/sample-app" }
+    @data["targets"]["linux-amd64"]["formats"] = %w[deb rpm]
+    @data["targets"]["linux-arm64"] = Marshal.load(Marshal.dump(@data["targets"].fetch("linux-amd64")))
+    @data["targets"]["linux-arm64"]["arch"] = "arm64"
+    configure
+    output = @root / "selected"
+    build(ids: ["linux-amd64"], output: output)
+    assert_raises(NativePackages::Error) { @build.verify(output) }
+    assert_equal ["linux-amd64"], @build.verify(output, ids: ["linux-amd64"]).fetch("targets").keys
+    assert_raises(NativePackages::Error) { @build.verify(output, ids: ["missing"]) }
+    assert_raises(NativePackages::Error) { @build.verify(output, ids: ["linux-arm64"]) }
+    partial = @root / "missing-format"
+    build(ids: ["linux-amd64"], formats: ["deb"], output: partial)
+    assert_raises(NativePackages::Error) { @build.verify(partial, ids: ["linux-amd64"]) }
+    complete = @root / "all-targets"
+    build(output: complete)
+    assert_raises(NativePackages::Error) { @build.verify(complete, ids: ["linux-amd64"]) }
+
+    # Exercise the public CLI; the only substituted tool is the publication transport.
+    bin = @root / "bin"
+    bin.mkpath
+    (bin / "gh").write("#!#{RbConfig.ruby}\nFile.write(#{(@root / 'upload.json').to_s.inspect}, ARGV.to_json)\n")
+    # The fake transport needs JSON itself, just as a standalone executable does.
+    (bin / "gh").write((bin / "gh").read.sub("\nFile.write", "\nrequire 'json'\nFile.write"))
+    File.chmod(0o755, bin / "gh")
+    original_path = ENV.fetch("PATH")
+    begin
+      ENV["PATH"] = "#{bin}#{File::PATH_SEPARATOR}#{original_path}"
+      capture_io { NativePackages::CLI.run(@root, ["publish", "--from", output.to_s, "--to", "github", "--target", "linux-amd64"]) }
+    ensure
+      ENV["PATH"] = original_path
+    end
+    upload = JSON.parse((@root / "upload.json").read)
+    assert_equal %w[release upload v1.2.3], upload.first(3)
+    assert_equal 2, upload.count { |argument| argument.end_with?(".deb", ".rpm") }
+    package = output / @build.verify(output, ids: ["linux-amd64"]).fetch("packages").first.fetch("path")
+    package.write("changed")
+    assert_raises(NativePackages::Error) { @build.publish(output, ["github"], ids: ["linux-amd64"]) }
+  end
+
   def test_binary_architecture_and_libc_are_inspected
     need_tools "cc", "readelf", "nfpm"
     (@root / "app.c").write("int main(void) { return 0; }\n")

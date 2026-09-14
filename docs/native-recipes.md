@@ -10,7 +10,7 @@ See [Apple notarization](apple-notarization.md).
 ```yaml
 schema: 1
 tool:
-  version: '0.5.1'
+  version: '0.6.0'
   nfpm: '2.47.0'
 nfpm:
   name: example-app

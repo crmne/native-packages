@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.0 (2026-09-14)
+
+- Use one configuration for Linux and native Mac/Windows targets. The reusable
+  Linux packaging workflow accepts explicit target IDs and forwards the same
+  selection to build and publication.
+- Add `publish --target ID`. Publication requires every configured format for
+  exactly those targets; the default still requires the whole configuration.
+  Configuration identity, recipe completion and package hashes remain checked.
+- Allow opted-in native prerelease builds to defer shared stable recipes.
+  Deferred output cannot be published or finalize prerelease AUR/Homebrew recipes.
+
 ## 0.5.1 (2026-09-13)
 
 - Make imported Apple signing identities usable on clean macOS CI runners by

@@ -124,3 +124,39 @@ output. Existing destinations are never overwritten.
 Deferral does not enable stable downstream recipes in a prerelease configuration.
 The existing preview-format and stable-recipe restrictions still apply. Use a
 preview configuration without downstream templates when building previews.
+
+## One configuration across native hosts
+
+Keep Linux, macOS and Windows targets in the same `native-packages.yaml`.
+Build native inputs on their native host. Use `--defer-recipes` there when
+stable distribution recipes need assets that have not yet been published:
+
+```sh
+native-packages build --version 1.2.3 --target macos-universal --defer-recipes
+```
+
+The application's release job may collect that native output directly. If it
+uses the shared Linux packaging workflow afterward, set its `targets` input
+to the complete Linux target IDs, for example `linux-amd64,linux-arm64`.
+The workflow passes that exact selection to both build and publication.
+An empty input retains the original all-target behavior. Native targets still
+require their native host; selecting a Mac target does not turn an Ubuntu job
+into a Mac runner.
+
+The corresponding CLI publication is explicit:
+
+```sh
+native-packages build --release v1.2.3 --target linux-amd64 --target linux-arm64
+native-packages publish --from dist/packages/1.2.3 --to github \
+  --target linux-amd64 --target linux-arm64
+```
+
+Every format for every selected target must be present, and no extra targets
+may be in that build. Unknown IDs, missing formats, altered files, unfinished
+recipes and configuration mismatches still fail before publication. Omitting
+`--target` requires all targets from the configuration. This does not authorize
+publishing an arbitrary partial build.
+
+With `release.prereleases: true`, `--defer-recipes` also permits a native
+prerelease to share its config with stable AUR/Homebrew templates. Those
+recipes remain deferred and cannot be finalized or published for a prerelease.

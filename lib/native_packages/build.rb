@@ -85,7 +85,7 @@ module NativePackages
       configuration.validate
       selected = configuration.select(ids: ids, formats: formats)
       number = version(value, release)
-      configuration.check_prerelease(number, selected)
+      configuration.check_prerelease(number, selected, defer_recipes: defer_recipes)
       if release && selected.values.any? { |target| target["native"] }
         raise Error, "native recipes consume local prepared directories; use --version with native build artifacts"
       end
@@ -330,16 +330,16 @@ module NativePackages
       raise Error, "missing recipe outputs: #{missing.join(', ')}" unless missing.empty?
     end
 
-    def verify(output, complete: true)
+    def verify(output, complete: true, ids: [])
       output = Pathname.new(output).expand_path(root)
       manifest = JSON.parse((output / "build.json").read)
       raise Error, "unsupported build manifest" unless manifest.fetch("schema") == 1
       raise Error, "build belongs to another project/configuration" unless manifest.fetch("name") == configuration.name && manifest.fetch("configuration") == configuration.digest
       number = configuration.package_version(manifest.fetch("version"))
       selected = configuration.select(ids: manifest.fetch("targets").keys)
-      configuration.check_prerelease(number, selected)
-      expected = configuration.targets.transform_values { |target| target.fetch("formats") }
-      raise Error, "incomplete target set; aggregate all configured targets before publishing" if complete && manifest.fetch("targets") != expected
+      configuration.check_prerelease(number, selected, defer_recipes: manifest.dig("recipes", "state") == "deferred")
+      expected = configuration.select(ids: ids).transform_values { |target| target.fetch("formats") }
+      raise Error, "incomplete target set; supply every format for all requested targets before publishing" if complete && manifest.fetch("targets") != expected
       expected_pairs = manifest.fetch("targets").flat_map { |id, formats| formats.map { |format| [id, format] } }.sort
       actual_pairs = manifest.fetch("packages").map { |entry| entry.values_at("target", "format") }.sort
       raise Error, "manifest packages do not match its target set" unless actual_pairs == expected_pairs
@@ -357,10 +357,10 @@ module NativePackages
       manifest
     end
 
-    def publish(output, destinations, body_file: nil)
+    def publish(output, destinations, body_file: nil, ids: [])
       configuration.validate
       output = Pathname.new(output).expand_path(root)
-      manifest = verify(output)
+      manifest = verify(output, ids: ids)
       raise Error, "supply at least one --to destination" if destinations.empty?
       destinations.each { |name| project.repositories.select(name) unless name == "github" }
       if manifest.fetch("version").include?("-")

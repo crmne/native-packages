@@ -47,9 +47,26 @@ class PrereleasePackagingTest < Minitest::Test
     (@root / "recipe.txt").write("@VERSION@\n")
     @data["templates"] = { "recipe.txt" => "recipe.txt" }
     assert_raises(NativePackages::Error) { builder.run_build(value: "1.2.3-alpha.1", dry_run: true) }
-    # Deferring recipe generation must not bypass the stable-only boundary.
-    assert_raises(NativePackages::Error) { builder.run_build(value: "1.2.3-alpha.1", dry_run: true, defer_recipes: true) }
+    # A native prerelease may share its config with stable recipes, but it
+    # must leave those recipes deferred rather than publish preview formulas.
+    plan = capture_io { builder.run_build(value: "1.2.3-alpha.1", dry_run: true, defer_recipes: true) }.first
+    assert_equal "deferred", JSON.parse(plan).fetch("recipes")
     refute_path_exists @root / "dist"
+  end
+
+  def test_deferred_prerelease_with_stable_recipes_cannot_finalize_or_publish_them
+    @data["release"]["prereleases"] = true
+    (@root / "recipe.txt").write("@VERSION@\n")
+    @data["templates"] = { "recipe.txt" => "recipe.txt" }
+    build = builder
+    skip "requires nfpm" unless build.available?("nfpm")
+    output = @root / "deferred"
+    capture_io { build.run_build(value: "1.2.3-alpha.1", output: output, defer_recipes: true) }
+    assert_equal "deferred", build.verify(output, complete: false).fetch("recipes").fetch("state")
+    refute_path_exists output / "recipes"
+    assert_includes assert_raises(NativePackages::Error) { build.publish(output, ["github"]) }.message, "recipes are deferred"
+    assert_raises(NativePackages::Error) { build.aggregate([output], output: @root / "final", finalize_recipes: true) }
+    refute_path_exists @root / "final"
   end
 
   def test_real_deb_rpm_keep_preview_version_and_verify_before_upload

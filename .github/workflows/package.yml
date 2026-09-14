@@ -9,6 +9,10 @@ on:
       publish:
         type: boolean
         default: false
+      targets:
+        description: Comma-separated target IDs (empty requires all configured targets)
+        type: string
+        default: ''
       config:
         type: string
         default: ''
@@ -38,6 +42,7 @@ jobs:
       config: ${{ steps.read.outputs.config }}
       gem-version: ${{ steps.read.outputs.gem-version }}
       nfpm-version: ${{ steps.read.outputs.nfpm-version }}
+      targets: ${{ steps.read.outputs.targets }}
     steps:
       - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
@@ -46,16 +51,22 @@ jobs:
       - id: read
         env:
           CONFIG: ${{ inputs.config }}
+          TARGETS: ${{ inputs.targets }}
         run: |
           ruby -ryaml <<'RUBY'
           paths = ENV.fetch('CONFIG').empty? ? %w[native-packages.yaml native-packages.yml].select { |path| File.file?(path) } : [ENV.fetch('CONFIG')]
           abort 'multiple configuration files found' if paths.length > 1
+          abort 'target selection needs native-packages.yaml' if paths.empty? && !ENV.fetch('TARGETS').strip.empty?
           File.open(ENV.fetch('GITHUB_OUTPUT'), 'a') do |output|
             output.puts "legacy=#{paths.empty?}"
             unless paths.empty?
               path = paths.first
               abort 'invalid configuration path' if path.include?("\n") || path.include?("\r")
               config = YAML.safe_load_file(path, permitted_classes: [], aliases: false)
+              requested = ENV.fetch('TARGETS').split(/[,\s]+/).reject(&:empty?).uniq.sort
+              unknown = requested - config.fetch('targets').keys
+              abort "unknown targets: #{unknown.join(', ')}" unless unknown.empty?
+              output.puts "targets=#{requested.join(',')}"
               tool = config.fetch('tool')
               %w[version nfpm].each { |key| abort "invalid tool.#{key}" unless /\A\d+\.\d+\.\d+\z/.match?(tool.fetch(key)) }
               output.puts "config=#{path}"
@@ -83,13 +94,14 @@ jobs:
     permissions:
       contents: write
     concurrency:
-      group: native-packages-${{ github.workflow }}-${{ github.ref }}-${{ needs.configuration.outputs.config }}
+      group: native-packages-${{ github.workflow }}-${{ github.ref }}-${{ needs.configuration.outputs.config }}-${{ needs.configuration.outputs.targets }}
       cancel-in-progress: false
     env:
       CONFIG: ${{ needs.configuration.outputs.config }}
       GEM_VERSION: ${{ needs.configuration.outputs.gem-version }}
       NFPM_VERSION: ${{ needs.configuration.outputs.nfpm-version }}
       VERSION: ${{ inputs.version }}
+      TARGETS: ${{ needs.configuration.outputs.targets }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -119,10 +131,22 @@ jobs:
           path: ${{ inputs.source-directory }}
       - name: Build packages from published release
         if: inputs.version != '' && inputs.source-artifact == ''
-        run: native-packages --config "$CONFIG" build --release "$VERSION" --output dist/native-packages
+        run: |
+          target_args=()
+          IFS=',' read -r -a target_ids <<< "$TARGETS"
+          for target in "${target_ids[@]}"; do
+            [[ -z "$target" ]] || target_args+=(--target "$target")
+          done
+          native-packages --config "$CONFIG" build --release "$VERSION" --output dist/native-packages "${target_args[@]}"
       - name: Build packages from local artifacts
         if: inputs.version != '' && inputs.source-artifact != ''
-        run: native-packages --config "$CONFIG" build --version "$VERSION" --output dist/native-packages
+        run: |
+          target_args=()
+          IFS=',' read -r -a target_ids <<< "$TARGETS"
+          for target in "${target_ids[@]}"; do
+            [[ -z "$target" ]] || target_args+=(--target "$target")
+          done
+          native-packages --config "$CONFIG" build --version "$VERSION" --output dist/native-packages "${target_args[@]}"
       - uses: actions/upload-artifact@v4
         if: inputs.version != ''
         with:
@@ -134,7 +158,13 @@ jobs:
         if: inputs.publish && inputs.version != ''
         env:
           GH_TOKEN: ${{ github.token }}
-        run: native-packages --config "$CONFIG" publish --from dist/native-packages --to github
+        run: |
+          target_args=()
+          IFS=',' read -r -a target_ids <<< "$TARGETS"
+          for target in "${target_ids[@]}"; do
+            [[ -z "$target" ]] || target_args+=(--target "$target")
+          done
+          native-packages --config "$CONFIG" publish --from dist/native-packages --to github "${target_args[@]}"
       - name: Publish AUR recipes
         if: inputs.publish && inputs.version != '' && vars.PUBLISH_AUR == 'true'
         env:
@@ -152,7 +182,12 @@ jobs:
           printf '%s\n' "$AUR_SSH_KEY" > ~/.ssh/id_ed25519
           printf '%s\n' "$AUR_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
-          native-packages --config "$CONFIG" publish --from dist/native-packages --to aur
+          target_args=()
+          IFS=',' read -r -a target_ids <<< "$TARGETS"
+          for target in "${target_ids[@]}"; do
+            [[ -z "$target" ]] || target_args+=(--target "$target")
+          done
+          native-packages --config "$CONFIG" publish --from dist/native-packages --to aur "${target_args[@]}"
       - name: Publish Homebrew recipe
         if: inputs.publish && inputs.version != '' && vars.PUBLISH_HOMEBREW == 'true'
         env:
@@ -164,4 +199,9 @@ jobs:
         run: |
           test -n "$GH_TOKEN"
           gh auth setup-git
-          native-packages --config "$CONFIG" publish --from dist/native-packages --to homebrew
+          target_args=()
+          IFS=',' read -r -a target_ids <<< "$TARGETS"
+          for target in "${target_ids[@]}"; do
+            [[ -z "$target" ]] || target_args+=(--target "$target")
+          done
+          native-packages --config "$CONFIG" publish --from dist/native-packages --to homebrew "${target_args[@]}"

@@ -56,10 +56,10 @@ module NativePackages
     def package(target) = merge(data.fetch("nfpm"), target.fetch("nfpm", {}))
     def package_version(value) = version_arg(value, prerelease: data.fetch("release").fetch("prereleases", false))
 
-    def check_prerelease(version, selected)
+    def check_prerelease(version, selected, defer_recipes: false)
       return unless version.include?("-")
       raise Error, "prerelease builds require release.prereleases: true" unless data.fetch("release")["prereleases"] == true
-      unless selected.values.all? { |target| (target.fetch("formats") - %w[deb rpm dmg inno]).empty? } && data.fetch("templates").empty?
+      unless selected.values.all? { |target| (target.fetch("formats") - %w[deb rpm dmg inno]).empty? } && (defer_recipes || data.fetch("templates").empty?)
         raise Error, "prereleases support deb, rpm, dmg and inno only, without downstream recipes"
       end
     end
