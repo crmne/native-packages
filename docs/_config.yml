@@ -1,0 +1,91 @@
+title: native-packages
+description: Learn to turn your built application into Linux packages, macOS disk images, and Windows installers, then publish your release.
+url: https://crmne.github.io
+baseurl: /native-packages
+lang: en
+timezone: UTC
+logo: /assets/images/logo.svg
+
+theme: jekyll-vitepress-theme
+plugins:
+  - jekyll-vitepress-theme
+  - jekyll-relative-links
+
+markdown: kramdown
+kramdown:
+  input: GFM
+permalink: pretty
+relative_links:
+  enabled: true
+  collections: true
+
+collections:
+  guides:
+    output: true
+    permalink: /:name/
+  reference:
+    output: true
+    permalink: /:name/
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
+  - scope:
+      type: guides
+    values:
+      render_with_liquid: false
+  - scope:
+      type: reference
+    values:
+      render_with_liquid: false
+
+jekyll_vitepress:
+  branding:
+    site_title: native-packages
+    logo:
+      default: /assets/images/logo.svg
+      alt: native-packages
+  syntax:
+    light_theme: github
+    dark_theme: github.dark
+  doc_footer:
+    enabled: true
+  last_updated:
+    enabled: false
+  edit_link:
+    enabled: true
+    pattern: https://github.com/crmne/native-packages/edit/main/docs/:path
+    text: Edit this page on GitHub
+  github_star:
+    enabled: true
+    repository: crmne/native-packages
+    text: Star
+    show_count: true
+  github_sponsor:
+    enabled: true
+    user: crmne
+    text: Sponsor
+  footer:
+    enabled: true
+    show_on_docs: false
+    message: >-
+      Brought to you by <a href="https://paolino.me" target="_blank" rel="noreferrer">Carmine Paolino</a>, maker of
+    copyright: >-
+      <span class="footer-brand-links"><a href="https://chatwithwork.com" class="footer-chatwithwork-link" target="_blank" rel="noreferrer"><img class="footer-chatwithwork-logo theme-image light" src="https://chatwithwork.com/logotype.svg" alt="Chat with Work"><img class="footer-chatwithwork-logo theme-image dark" src="https://chatwithwork.com/logotype-dark.svg" alt="Chat with Work"></a><a href="https://rubyllm.com" class="footer-rubyllm-link" target="_blank" rel="noreferrer"><img class="footer-rubyllm-logo theme-image light" src="https://rubyllm.com/assets/images/logotype.svg" alt="RubyLLM"><img class="footer-rubyllm-logo theme-image dark" src="https://rubyllm.com/assets/images/logotype_dark.svg" alt="RubyLLM"></a></span><br><span class="footer-built-with">Docs built with <a href="https://jekyll-vitepress.dev" target="_blank" rel="noreferrer">Jekyll VitePress</a>.</span>
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor
+  - .bundle
+  - scripts
+  - acceptance
+  - cli-design.md
+  - releasing.md
+  - legacy.md
+  - configuration.md
+  - platforms.md
+  - native-recipes.md
+  - apple-notarization.md

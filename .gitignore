@@ -3,3 +3,9 @@
 /pkg/
 /vendor/
 /*.gem
+/docs/.bundle/
+/docs/.jekyll-cache/
+/docs/.jekyll-metadata
+/docs/.sass-cache/
+/docs/_site/
+/docs/vendor/

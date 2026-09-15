@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">native-packages logo</title>
+  <desc id="desc">An indigo package with a pale blue sealing strip and a terminal prompt on its side.</desc>
+  <defs>
+    <linearGradient id="top" x1="44" y1="44" x2="212" y2="132" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#a5b4fc"/>
+      <stop offset="1" stop-color="#818cf8"/>
+    </linearGradient>
+    <linearGradient id="left" x1="44" y1="88" x2="128" y2="220" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="right" x1="128" y1="132" x2="212" y2="174" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4338ca"/>
+      <stop offset="1" stop-color="#3730a3"/>
+    </linearGradient>
+  </defs>
+  <path d="M128 36 220 84 128 132 36 84Z" fill="url(#top)"/>
+  <path d="M36 84 128 132V228L36 180Z" fill="url(#left)"/>
+  <path d="m128 132 92-48v96l-92 48Z" fill="url(#right)"/>
+  <path d="m80 61 92 48 20-10-92-48Z" fill="#e0e7ff"/>
+  <path d="m172 109 20-10v43l-10-1-10 12Z" fill="#a5b4fc"/>
+  <g fill="none" stroke="#eef2ff" stroke-linecap="round" stroke-linejoin="round" stroke-width="6">
+    <path d="m59 122 14 18-14 4"/>
+    <path d="m86 156 17 9"/>
+  </g>
+</svg>

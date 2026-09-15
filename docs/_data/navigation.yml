@@ -1,0 +1,8 @@
+- title: Guide
+  url: /guides/
+  collections: [guides]
+- title: Reference
+  url: /configuration/
+  collections: [reference]
+- title: Blog
+  url: https://paolino.me
