@@ -2,10 +2,10 @@ name: Documentation
 
 on:
   pull_request:
-    paths: ['docs/**', '.github/workflows/docs.yml']
+    paths: ['docs/**', 'lib/native_packages/support.rb', '.github/workflows/docs.yml']
   push:
     branches: [main]
-    paths: ['docs/**', '.github/workflows/docs.yml']
+    paths: ['docs/**', 'lib/native_packages/support.rb', '.github/workflows/docs.yml']
   workflow_dispatch:
 
 permissions:

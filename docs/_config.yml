@@ -42,6 +42,8 @@ defaults:
       render_with_liquid: false
 
 jekyll_vitepress:
+  version:
+    file: ../lib/native_packages/support.rb
   branding:
     site_title: native-packages
     logo:
