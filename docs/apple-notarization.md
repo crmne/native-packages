@@ -3,5 +3,3 @@
 This guide is now part of the documentation site:
 
 [Apple signing and notarization](_guides/apple-notarization.md).
-
-Browse [all guides](_guides/index.md).

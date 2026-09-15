@@ -58,8 +58,7 @@ for prerequisites and distribution recipes.
 
 ## Guides
 
-Start with [getting started](docs/_guides/getting-started.md), or browse the
-[complete guide index](docs/_guides/index.md).
+Start with [getting started](docs/_guides/getting-started.md).
 
 - [Building packages](docs/_guides/building-packages.md) — add files, dependencies, and more targets.
 - [Publishing a release](docs/_guides/publishing.md) — build from release assets and upload packages.

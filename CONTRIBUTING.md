@@ -53,8 +53,8 @@ out of the committed lockfile.
 
 Put tutorials in `docs/_guides/` and reference pages in `docs/_reference/`.
 Add `title`, `description`, and `nav_order` to the YAML front matter. The sidebar
-and previous/next links follow that order. Add the page to [the guide index](docs/_guides/index.md)
-when it is ready.
+and previous/next links follow that order. New pages appear in the sidebar
+automatically.
 
 Start with what the reader will accomplish and what they need. Use a complete
 example, explain unfamiliar terms when they first appear, and show the expected

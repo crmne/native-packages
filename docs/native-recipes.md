@@ -3,5 +3,3 @@
 This guide is now part of the documentation site:
 
 [macOS and Windows installers](_guides/native-recipes.md).
-
-Browse [all guides](_guides/index.md).
