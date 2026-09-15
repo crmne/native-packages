@@ -36,11 +36,11 @@ bundle install
 bundle exec jekyll serve --livereload
 ```
 
-Open <http://localhost:4000/native-packages/>. To build and check internal links:
+Open <http://localhost:4000/>. To build and check internal links:
 
 ```sh
 bundle exec jekyll build --strict_front_matter --trace
-python3 scripts/check_links.py _site --baseurl /native-packages
+python3 scripts/check_links.py _site
 ```
 
 The generated site is in `docs/_site/` and is ignored by Git and excluded from
@@ -75,7 +75,12 @@ GitHub Pages. To enable the first deployment, select **GitHub Actions** under
 the repository's **Settings → Pages → Build and deployment → Source**.
 See [GitHub's custom workflow setup](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
 
-The default URL is `https://crmne.github.io/native-packages/`. If hosting at a
-different location, update `url` and `baseurl` in `docs/_config.yml` and the
-link-check command in the workflow. Build for another base path with
+The site is published at `https://native-packages.dev/`. GitHub Pages uses
+`native-packages.dev` as the custom domain, with HTTPS enforced. The Jekyll
+configuration uses that URL and an empty `baseurl` so pages and assets are
+served from the domain root.
+
+If hosting at a different location, update the Pages custom domain and `url`
+in `docs/_config.yml`. For hosting under a path, also update `baseurl` and the
+link-check command in the workflow. You can preview another base path with
 `bundle exec jekyll build --baseurl /your-path`.

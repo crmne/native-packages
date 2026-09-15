@@ -13,7 +13,7 @@ Homebrew casks.
 
 You bring the compiled app. native-packages handles packaging and release updates.
 
-[Documentation](https://crmne.github.io/native-packages/)
+[Documentation](https://native-packages.dev/)
 
 ## Get started
 

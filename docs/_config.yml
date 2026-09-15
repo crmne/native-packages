@@ -1,7 +1,7 @@
 title: native-packages
 description: Learn to turn your built application into Linux packages, macOS disk images, and Windows installers, then publish your release.
-url: https://crmne.github.io
-baseurl: /native-packages
+url: https://native-packages.dev
+baseurl: ""
 lang: en
 timezone: UTC
 logo: /assets/images/logo.svg
