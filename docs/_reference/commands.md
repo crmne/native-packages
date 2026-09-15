@@ -157,7 +157,7 @@ native-packages migrate
 ```
 
 Preview or create a single configuration from the legacy `packaging/project.yml`
-setup. Existing packaging files are preserved. See [Migrating from v0.1](migration.md).
+setup. Existing packaging files are preserved.
 
 ## check-version
 

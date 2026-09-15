@@ -74,7 +74,7 @@ For a particular option or error, see the [configuration reference](docs/_refere
 
 See [Contributing](CONTRIBUTING.md) for development, tests, and running the
 documentation site locally. Upgrading an older setup? Read
-[Migrating from v0.1](docs/_reference/migration.md).
+the [`migrate` command reference](docs/_reference/commands.md#migrate).
 
 ## License
 
