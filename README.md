@@ -65,6 +65,7 @@ Start with [getting started](docs/_guides/getting-started.md).
 - [GitHub Actions](docs/_guides/github-actions.md) — add packaging to your release workflow.
 - [macOS and Windows installers](docs/_guides/native-recipes.md) — connect your native packaging scripts.
 - [Apple signing and notarization](docs/_guides/apple-notarization.md) — prepare macOS downloads for distribution.
+- [Release signatures and attestations](docs/_guides/release-signing.md): authorize updater downloads and identify their build workflow (unreleased).
 - [AUR, Homebrew, and other repositories](docs/_guides/distribution-recipes.md) — generate and publish recipes.
 
 For a particular option or error, see the [configuration reference](docs/_reference/configuration.md),

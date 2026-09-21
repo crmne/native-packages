@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Generate deterministic release checksums, sign their exact bytes with an
+  application-owned Ed25519 key, and verify signatures and artifact hashes.
+  Missing or invalid credentials fail closed; signing never writes a private
+  key file or invokes package build hooks.
+- Add opt-in signing and provenance-attestation composite actions. Attestations
+  run in the application's build job; protected environments, approval policy,
+  secrets, trusted public keys and release publication remain application-owned.
+
 ## 0.6.0 (2026-09-14)
 
 - Use one configuration for Linux and native Mac/Windows targets. The reusable

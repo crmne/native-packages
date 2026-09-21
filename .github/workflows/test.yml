@@ -9,6 +9,42 @@ permissions:
   contents: read
 
 jobs:
+  release-signing:
+    name: Release signing (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+      - name: Test signatures and composite action with disposable keys
+        run: bundle exec ruby -Ilib test/release_signing_test.rb
+
+  attestation:
+    name: Attestation smoke test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make a synthetic artifact
+        run: printf 'native-packages attestation fixture\n' > attestation-fixture.txt
+      - uses: ./.github/actions/attest
+        with:
+          subject-path: attestation-fixture.txt
+      - name: Verify the calling repository and workflow identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh attestation verify attestation-fixture.txt --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/test.yml" --source-digest "$GITHUB_SHA"
+
   test:
     runs-on: ubuntu-latest
     strategy:
