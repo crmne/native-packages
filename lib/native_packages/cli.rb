@@ -2,6 +2,7 @@
 
 require_relative "build"
 require_relative "scaffold"
+require_relative "release_signing"
 
 module NativePackages
   module CLI
@@ -15,6 +16,10 @@ module NativePackages
           [--output DIRECTORY] [--dry-run]         Choose output or inspect the plan
           [--defer-recipes]                        Build targets without recipe assets/tools
         notarize-macos DIRECTORY --output DIRECTORY Copy, sign and notarize portable Mac code
+        release-checksums DIRECTORY --output FILE  Hash a flat directory of release artifacts
+        sign-checksums FILE --public-key HEX_FILE   Sign verified checksums with Ed25519
+          [--key-env VARIABLE]                    Default: NATIVE_PACKAGES_SIGNING_KEY
+        verify-checksums FILE --public-key HEX_FILE Verify signature and artifact hashes
         aggregate DIR... --output DIRECTORY        Combine target builds before publishing
           [--finalize-recipes]                    Generate recipes from deferred builds
         publish --from DIRECTORY --to github,aur   Publish a complete, verified build
@@ -50,6 +55,11 @@ module NativePackages
         flags.on("--help", "-h") { puts HELP; return }
         flags.on("--output DIRECTORY") { |value| options[:output] = Pathname.new(value).expand_path(root) } if %w[build aggregate artifacts prepare notarize-macos].include?(command)
         flags.on("--body-file FILE") { |value| options[:body_file] = Pathname.new(value).expand_path(root) } if command == "publish"
+        flags.on("--output FILE") { |value| options[:output] = Pathname.new(value).expand_path(root) } if command == "release-checksums"
+        if %w[sign-checksums verify-checksums].include?(command)
+          flags.on("--public-key FILE") { |value| options[:public_key] = Pathname.new(value).expand_path(root) }
+        end
+        flags.on("--key-env VARIABLE") { |value| options[:key_env] = value } if command == "sign-checksums"
         flags.on("--target ID") { |value| options[:ids] << value } if %w[build doctor publish].include?(command)
         if %w[build doctor].include?(command)
           flags.on("--format FORMAT") { |value| options[:formats] << value }
@@ -80,10 +90,21 @@ module NativePackages
       parser.parse!(arguments)
       raise Error, "publish --target requires --from" if command == "publish" && !options[:from] && !options[:ids].empty?
       arity = { "init" => 0..0, "migrate" => 0..0, "build" => 0..0, "doctor" => 0..0, "aggregate" => 1..,
+        "release-checksums" => 1..1, "sign-checksums" => 1..1, "verify-checksums" => 1..1,
         "prepare" => 1..1, "check" => 1..1, "artifacts" => 1..1, "publish-release" => 2..2,
         "notarize-macos" => 1..1, "repositories" => 0..0, "stage" => 2..2, "diff" => 1..1, "publish" => options[:from] ? 0..0 : 1..1,
         "publish-aur" => 1..1, "status" => 0..1, "check-version" => 1..1, "validate" => 0..0 }[command]
       raise Error, HELP unless arity&.cover?(arguments.length)
+      if %w[release-checksums sign-checksums verify-checksums].include?(command)
+        path = Pathname.new(arguments.first).expand_path(root)
+        if command == "release-checksums"
+          raise Error, "release-checksums requires --output" unless options[:output]
+          return ReleaseSigning.checksums(path, output: options.fetch(:output))
+        end
+        raise Error, "#{command} requires --public-key" unless options[:public_key]
+        return ReleaseSigning.sign(path, **options.slice(:public_key, :key_env)) if command == "sign-checksums"
+        return ReleaseSigning.verify(path, public_key: options.fetch(:public_key))
+      end
       if command == "init"
         raise Error, "init writes native-packages.yaml in the current directory" if config_path
         return Scaffold.new(root).init(**options.slice(:interactive, :name, :input).merge(formats: options[:init_formats]))

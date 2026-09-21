@@ -149,6 +149,24 @@ sign and notarize the copy. `--output` is required, must be new, and must be
 outside the input. This command needs no project configuration. See
 [Apple signing and notarization](../_guides/apple-notarization.md).
 
+## Release checksums and signatures
+
+```sh
+native-packages release-checksums dist/release --output dist/release/checksums.txt
+native-packages sign-checksums dist/release/checksums.txt --public-key assets/update-public-key.hex
+native-packages verify-checksums dist/release/checksums.txt --public-key assets/update-public-key.hex
+```
+
+These commands need no project configuration. Generation requires a nonempty,
+flat directory of regular files and a new output file in that directory.
+Signing checks every listed artifact before writing a new `checksums.txt.sig`.
+Verification requires both a valid signature and matching artifact hashes.
+
+The signing key comes from `NATIVE_PACKAGES_SIGNING_KEY`, or the environment
+variable named by `--key-env VARIABLE`. Pass only the variable's name on the
+command line, never its secret value. The public-key file contains 64 hex digits.
+See [Release signatures and attestations](../_guides/release-signing.md).
+
 ## migrate
 
 ```sh
@@ -175,7 +193,7 @@ If several gem versions are installed, RubyGems lets you select the one required
 by the configuration:
 
 ```sh
-native-packages _0.6.0_ build --version 1.2.3
+native-packages _0.7.0_ build --version 1.2.3
 ```
 
 Bundler also works if you prefer to manage the gem in a Gemfile.

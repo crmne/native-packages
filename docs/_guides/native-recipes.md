@@ -31,7 +31,7 @@ Here is a complete configuration for an ARM64 Mac app and an x86-64 Windows app:
 ```yaml
 schema: 1
 tool:
-  version: '0.6.0'
+  version: '0.7.0'
   nfpm: '2.47.0'
 nfpm:
   name: hello

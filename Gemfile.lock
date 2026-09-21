@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    native-packages (0.6.0)
+    native-packages (0.7.0)
 
 GEM
   remote: https://rubygems.org/
@@ -21,9 +21,10 @@ DEPENDENCIES
   native-packages!
 
 CHECKSUMS
+  bundler (4.0.16) sha256=d6ca5dd440c24f9abce9844cf44cc8e18c6a553de65a47efb4544137af92c47d
   drb (2.2.3) sha256=0b00d6fdb50995fe4a45dea13663493c841112e4068656854646f418fda13373
   minitest (6.0.6) sha256=153ea36d1d987a62942382b61075745042a2b3123b1cd48f4c3675af9cc7d6f1
-  native-packages (0.6.0)
+  native-packages (0.7.0)
   prism (1.9.0) sha256=7b530c6a9f92c24300014919c9dcbc055bf4cdf51ec30aed099b06cd6674ef85
 
 BUNDLED WITH

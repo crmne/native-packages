@@ -1,0 +1,26 @@
+name: Sign release checksums
+description: Generate and Ed25519-sign checksums for a flat directory of completed artifacts
+inputs:
+  directory:
+    description: Directory containing only final release artifacts
+    required: true
+  public-key:
+    description: Committed file containing the application's trusted 32-byte public key as hex
+    required: true
+  key-env:
+    description: Name of the step environment variable containing the private PKCS8 PEM key
+    default: NATIVE_PACKAGES_SIGNING_KEY
+runs:
+  using: composite
+  steps:
+    - name: Generate, sign and verify release manifest
+      shell: bash
+      env:
+        SIGNING_TOOL_ROOT: ${{ github.action_path }}/../../..
+        ARTIFACT_DIRECTORY: ${{ inputs.directory }}
+        TRUSTED_PUBLIC_KEY: ${{ inputs.public-key }}
+        PRIVATE_KEY_VARIABLE: ${{ inputs.key-env }}
+      run: |
+        ruby -I "$SIGNING_TOOL_ROOT/lib" "$SIGNING_TOOL_ROOT/exe/native-packages" release-checksums "$ARTIFACT_DIRECTORY" --output "$ARTIFACT_DIRECTORY/checksums.txt"
+        ruby -I "$SIGNING_TOOL_ROOT/lib" "$SIGNING_TOOL_ROOT/exe/native-packages" sign-checksums "$ARTIFACT_DIRECTORY/checksums.txt" --public-key "$TRUSTED_PUBLIC_KEY" --key-env "$PRIVATE_KEY_VARIABLE"
+        ruby -I "$SIGNING_TOOL_ROOT/lib" "$SIGNING_TOOL_ROOT/exe/native-packages" verify-checksums "$ARTIFACT_DIRECTORY/checksums.txt" --public-key "$TRUSTED_PUBLIC_KEY"

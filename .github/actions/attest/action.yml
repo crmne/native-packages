@@ -1,0 +1,21 @@
+name: Attest application build artifacts
+description: Publish provenance in the calling application's build job, without a publisher key
+inputs:
+  subject-path:
+    description: Glob or newline-separated paths of final artifacts produced by this job
+    required: true
+outputs:
+  bundle-path:
+    description: Local path to the signed attestation bundle
+    value: ${{ steps.attest.outputs.bundle-path }}
+  attestation-url:
+    description: GitHub attestation summary URL
+    value: ${{ steps.attest.outputs.attestation-url }}
+runs:
+  using: composite
+  steps:
+    - id: attest
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+      with:
+        subject-path: ${{ inputs.subject-path }}
+        create-storage-record: false

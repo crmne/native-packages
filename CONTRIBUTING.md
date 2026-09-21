@@ -18,7 +18,7 @@ To check the packaged gem and standalone command:
 
 ```sh
 gem build native-packages.gemspec
-ruby test/gem_install.rb native-packages-0.6.0.gem
+ruby test/gem_install.rb native-packages-0.7.0.gem
 ```
 
 See [Releasing the gem](docs/releasing.md) for publication and
