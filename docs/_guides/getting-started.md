@@ -17,7 +17,7 @@ own compiled executable, or build the tiny example below.
 You need Ruby 3.2 or later. Install the version used by these guides:
 
 ```sh
-gem install native-packages --version 0.6.0
+gem install native-packages --version 0.7.0
 ```
 
 For Linux packages, install **nFPM 2.47.0**, the helper native-packages uses to
@@ -79,7 +79,7 @@ Open the generated `native-packages.yaml` and replace its contents with:
 ```yaml
 schema: 1
 tool:
-  version: '0.6.0'
+  version: '0.7.0'
   nfpm: '2.47.0'
 
 nfpm:

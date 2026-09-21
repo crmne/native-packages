@@ -9,9 +9,9 @@ nav_order: 10
 Publisher signatures authorize release downloads. Build attestations identify
 which repository, workflow and commit produced an artifact. Use both when your
 application downloads its own updates. Neither proves the source code is safe.
-These features are unreleased and are not in the published 0.6.0 gem. Until a
-release includes them, use a reviewed source commit for the composite actions,
-or run the CLI with `ruby -Ilib exe/native-packages` from that source checkout.
+These features are available in native-packages 0.7.0 and later. Use the
+released gem for local commands and pin composite actions to the reviewed
+commit behind the corresponding release tag.
 
 ## Keep the trust policy in the application
 
@@ -67,8 +67,8 @@ Package publication's separate `packaging-checksums.txt` is also unchanged.
 
 ## Attest in the application's build job
 
-Pin the following action to a reviewed full commit SHA. Replace
-`REVIEWED_COMMIT_SHA` in these examples; do not use a mutable branch for releases.
+The examples use `v0.7.0` for readability. For release workflows, replace it
+with that release's reviewed full commit SHA, not a mutable branch.
 After producing the final package, before uploading it, add this step to the
 job that built it:
 
@@ -79,7 +79,7 @@ permissions:
   attestations: write
 steps:
   # Existing checkout, build, platform signing and packaging steps go here.
-  - uses: crmne/native-packages/.github/actions/attest@REVIEWED_COMMIT_SHA
+  - uses: crmne/native-packages/.github/actions/attest@v0.7.0
     with:
       subject-path: dist/*.tar.gz
 ```
@@ -108,7 +108,7 @@ and install Ruby 3.2 or later with Ed25519-capable OpenSSL before the signing
 step. Then call:
 
 ```yaml
-- uses: crmne/native-packages/.github/actions/sign-release@REVIEWED_COMMIT_SHA
+- uses: crmne/native-packages/.github/actions/sign-release@v0.7.0
   with:
     directory: dist/release
     public-key: assets/update-public-key.hex

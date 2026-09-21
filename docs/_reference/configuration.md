@@ -28,7 +28,7 @@ expressions. Use the replacement values listed below.
 | Field | Purpose |
 | --- | --- |
 | `schema` | Required. Set to `1`. |
-| `tool.version` | Required. Exact native-packages version, such as `'0.6.0'`. |
+| `tool.version` | Required. Exact native-packages version, such as `'0.7.0'`. |
 | `tool.nfpm` | Required. Set to `'2.47.0'`, including in native-only configurations. |
 | `nfpm` | Shared package metadata and installed-file mappings, or a relative YAML filename. Requires `name`. |
 | `targets` | Required. Named build targets; use `{}` for recipe-only projects. |

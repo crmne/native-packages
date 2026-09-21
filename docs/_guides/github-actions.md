@@ -24,7 +24,7 @@ packaging:
   needs: release
   permissions:
     contents: write
-  uses: crmne/native-packages/.github/workflows/package.yml@v0.6.0
+  uses: crmne/native-packages/.github/workflows/package.yml@v0.7.0
   with:
     version: ${{ github.ref_name }}
     publish: true
@@ -39,7 +39,7 @@ The configuration must include `release.repository` and a `release_asset`
 for each selected target. See [Publishing a release](publishing.md).
 
 Use the same native-packages release for the workflow and `tool.version`.
-For an immutable workflow reference, replace `v0.6.0` with that release's
+For an immutable workflow reference, replace `v0.7.0` with that release's
 full commit SHA.
 
 ## Build without publishing
@@ -57,7 +57,7 @@ permissions:
   contents: read
 jobs:
   packaging:
-    uses: crmne/native-packages/.github/workflows/package.yml@v0.6.0
+    uses: crmne/native-packages/.github/workflows/package.yml@v0.7.0
 ```
 
 Validation does not compile the app or check that future release inputs exist.
@@ -72,7 +72,7 @@ packaging:
   needs: build
   permissions:
     contents: write
-  uses: crmne/native-packages/.github/workflows/package.yml@v0.6.0
+  uses: crmne/native-packages/.github/workflows/package.yml@v0.7.0
   with:
     version: '1.2.3'
     source-artifact: linux-binaries

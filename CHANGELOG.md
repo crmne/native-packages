@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 (2026-09-21)
 
 - Generate deterministic release checksums, sign their exact bytes with an
   application-owned Ed25519 key, and verify signatures and artifact hashes.

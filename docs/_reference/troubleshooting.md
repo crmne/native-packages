@@ -23,8 +23,8 @@ working on with `doctor --target ID` and `build --target ID --dry-run`.
 Install and select the version named in the error:
 
 ```sh
-gem install native-packages --version 0.6.0
-native-packages _0.6.0_ doctor
+gem install native-packages --version 0.7.0
+native-packages _0.7.0_ doctor
 ```
 
 `tool.version` is an exact match. In CI, use the matching released reusable

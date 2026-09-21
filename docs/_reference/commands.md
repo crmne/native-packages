@@ -149,7 +149,7 @@ sign and notarize the copy. `--output` is required, must be new, and must be
 outside the input. This command needs no project configuration. See
 [Apple signing and notarization](../_guides/apple-notarization.md).
 
-## Release checksums and signatures (unreleased)
+## Release checksums and signatures
 
 ```sh
 native-packages release-checksums dist/release --output dist/release/checksums.txt
@@ -193,7 +193,7 @@ If several gem versions are installed, RubyGems lets you select the one required
 by the configuration:
 
 ```sh
-native-packages _0.6.0_ build --version 1.2.3
+native-packages _0.7.0_ build --version 1.2.3
 ```
 
 Bundler also works if you prefer to manage the gem in a Gemfile.

@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |spec|
   spec.name = "native-packages"
-  spec.version = "0.6.0"
+  spec.version = "0.7.0"
   spec.summary = "Build native application packages and publish release updates"
   spec.authors = ["Carmine Paolino"]
   spec.email = ["carmine@paolino.me"]
