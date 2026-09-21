@@ -3,40 +3,59 @@ name: Release gem
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing published release tag to test and publish without moving it
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: gem-release-${{ github.event.release.tag_name }}
+  group: gem-release-${{ inputs.tag || github.event.release.tag_name }}
   cancel-in-progress: false
 
 jobs:
   validate:
     runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.release.outputs.sha }}
+      tag: ${{ steps.release.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.tag || github.event.release.tag_name }}
           fetch-depth: 0
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '4.0'
       - name: Verify release tag, commit and version
+        id: release
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
+          RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           version=$(ruby -Ilib -r native_packages -e 'puts NativePackages::VERSION')
           test "$RELEASE_TAG" = "v$version"
           test "$(git rev-parse HEAD)" = "$(git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}")"
           git merge-base --is-ancestor HEAD origin/main
           prerelease=$(ruby -rrubygems/version -e 'puts Gem::Version.new(ARGV.fetch(0)).prerelease?' "$version")
-          test "$prerelease" = "$RELEASE_PRERELEASE"
+          published_prerelease=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease --jq 'if .isDraft then error("Release must be published") else .isPrerelease end')
+          test "$prerelease" = "$published_prerelease"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
 
   checks:
     needs: validate
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     uses: ./.github/workflows/test.yml
+    with:
+      source-ref: ${{ needs.validate.outputs.sha }}
 
   publish:
     needs: [validate, checks]
@@ -47,7 +66,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ needs.validate.outputs.sha }}
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '4.0'
@@ -57,7 +76,7 @@ jobs:
           path: pkg
       - name: Verify tested gem
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
         run: |
           ruby -rrubygems/package -e 'p = Dir["pkg/*.gem"].fetch(0); s = Gem::Package.new(p).spec; abort "tag/version mismatch" unless ENV.fetch("RELEASE_TAG") == "v#{s.version}"'
       - name: Publish to RubyGems
@@ -85,5 +104,5 @@ jobs:
       - name: Attach tested gem to GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
         run: gh release upload "$RELEASE_TAG" pkg/*.gem --clobber

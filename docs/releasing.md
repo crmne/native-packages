@@ -31,3 +31,16 @@ Adding `--draft` permits review before publication and does not trigger the publ
 The release workflow verifies the tag, tested commit and prerelease setting, then runs the test workflow, including native package acceptance. It downloads the tested gem from the Ruby 4.0 job, publishes it to RubyGems and GitHub Packages, and attaches it to the GitHub release. It does not rebuild a different artifact after the tests.
 
 If authentication is missing, leave the tested gem and release draft available until the secret is configured. Failed release jobs can be rerun after configuration; already-published gem versions are not overwritten. Never move an existing release tag to retry publication.
+
+If the workflow itself needs a correction, fix it on `main` and dispatch the
+corrected release workflow against the existing published tag:
+
+```sh
+gh workflow run release.yml --ref main -f tag=v0.7.0
+```
+
+Validation resolves the original tag to an exact commit, requires it to be on
+`main`, and checks the existing release's version and prerelease state. Every
+test and publication checkout uses that commit, not the newer workflow commit.
+The gem is taken from that retry's tested Ruby 4.0 artifact. This permits a
+workflow repair without moving a tag or publishing untested source.
