@@ -125,10 +125,14 @@ GitHub repository:
 | Destination | Repository variable | Secrets |
 | --- | --- | --- |
 | AUR group `aur` | `PUBLISH_AUR=true` | `AUR_SSH_KEY`, `AUR_KNOWN_HOSTS` |
-| Destination or group `homebrew` | `PUBLISH_HOMEBREW=true` | `HOMEBREW_TAP_GITHUB_TOKEN` |
+| Destination or group `homebrew` | `PUBLISH_HOMEBREW=true` | `HOMEBREW_TAP_SSH_KEY` or `HOMEBREW_TAP_GITHUB_TOKEN` |
 
-These steps run only with `publish: true`. The Homebrew token needs write
-access to your tap; the AUR key needs access to the configured repositories.
+These steps run only with `publish: true`. For Homebrew, prefer a deploy key
+with write access to the tap alone (`gh repo deploy-key add KEY.pub --repo
+OWNER/homebrew-tap --allow-write`) stored as `HOMEBREW_TAP_SSH_KEY`: pushes to
+GitHub then go over SSH, checked against GitHub's published host keys. A token
+in `HOMEBREW_TAP_GITHUB_TOKEN` also works and needs write access to the tap.
+The AUR key needs access to the configured repositories.
 Use `secrets: inherit` as in the release example, or pass the named secrets
 explicitly. If another tool already publishes a destination, keep one
 publisher responsible for it.
