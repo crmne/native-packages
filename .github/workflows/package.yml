@@ -202,8 +202,10 @@ jobs:
           GIT_COMMITTER_EMAIL: ${{ github.actor }}@users.noreply.github.com
         run: |
           if [[ -n "$HOMEBREW_TAP_SSH_KEY" ]]; then
-            # A deploy key with write access to the tap alone. Pushes to
-            # GitHub go over SSH; clones of the public tap stay on HTTPS.
+            # A deploy key with write access to the tap alone, used for the
+            # tap's clone and push. insteadOf, not pushInsteadOf: git ignores
+            # pushInsteadOf for a remote with an explicit push URL, which the
+            # managed checkout always sets.
             install -d -m 700 ~/.ssh
             printf '%s\n' "$HOMEBREW_TAP_SSH_KEY" > ~/.ssh/homebrew_tap
             chmod 600 ~/.ssh/homebrew_tap
@@ -211,7 +213,7 @@ jobs:
               | jq -r '.ssh_keys[] | "github.com " + .' > ~/.ssh/github_known_hosts
             test -s ~/.ssh/github_known_hosts
             export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/homebrew_tap -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/github_known_hosts"
-            git config --global url.ssh://git@github.com/.pushInsteadOf https://github.com/
+            git config --global url.ssh://git@github.com/.insteadOf https://github.com/
           elif [[ -n "$GH_TOKEN" ]]; then
             gh auth setup-git
           else

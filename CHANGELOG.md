@@ -3,8 +3,8 @@
 ## Unreleased
 
 - Publish Homebrew recipes with a deploy key (`HOMEBREW_TAP_SSH_KEY`) that can
-  write to the tap alone, as an alternative to a token. Pushes go over SSH and
-  are checked against GitHub's published host keys.
+  write to the tap alone, as an alternative to a token. The tap is cloned and
+  pushed over SSH, checked against GitHub's published host keys.
 
 ## 0.7.0 (2026-09-21)
 

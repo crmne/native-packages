@@ -76,7 +76,7 @@ class WorkflowTargetsTest < Minitest::Test
     assert status.success?, stderr
     assert_equal "PRIVATE KEY\n", (home / ".ssh/homebrew_tap").read
     assert_equal "github.com ssh-ed25519 AAAAhost\n", (home / ".ssh/github_known_hosts").read
-    assert_includes calls, "git config --global url.ssh://git@github.com/.pushInsteadOf https://github.com/"
+    assert_includes calls, "git config --global url.ssh://git@github.com/.insteadOf https://github.com/"
     refute_includes calls, "gh auth"
     assert_includes calls, "native-packages --config config.yaml publish --from dist/native-packages --to homebrew"
   end
@@ -85,7 +85,7 @@ class WorkflowTargetsTest < Minitest::Test
     status, stderr, calls, = homebrew_step("GH_TOKEN" => "token")
     assert status.success?, stderr
     assert_includes calls, "gh auth setup-git"
-    refute_includes calls, "pushInsteadOf"
+    refute_includes calls, "insteadOf"
     status, stderr, calls, = homebrew_step({})
     refute status.success?
     assert_includes stderr, "HOMEBREW_TAP_SSH_KEY"

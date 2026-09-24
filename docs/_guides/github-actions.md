@@ -129,8 +129,8 @@ GitHub repository:
 
 These steps run only with `publish: true`. For Homebrew, prefer a deploy key
 with write access to the tap alone (`gh repo deploy-key add KEY.pub --repo
-OWNER/homebrew-tap --allow-write`) stored as `HOMEBREW_TAP_SSH_KEY`: pushes to
-GitHub then go over SSH, checked against GitHub's published host keys. A token
+OWNER/homebrew-tap --allow-write`) stored as `HOMEBREW_TAP_SSH_KEY`: GitHub URLs in that step then go over SSH,
+checked against GitHub's published host keys. A token
 in `HOMEBREW_TAP_GITHUB_TOKEN` also works and needs write access to the tap.
 The AUR key needs access to the configured repositories.
 Use `secrets: inherit` as in the release example, or pass the named secrets
