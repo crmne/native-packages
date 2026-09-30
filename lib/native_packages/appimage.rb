@@ -101,7 +101,10 @@ module NativePackages
           source = File.expand_path(item.fetch("src"), root)
           paths = package["disable_globbing"] ? [source].select { |path| File.exist?(path) } : Dir.glob(source).sort
           raise Error, "missing package content: #{source}" if paths.empty?
-          single = paths.length == 1 && File.file?(paths.first) && type != "tree"
+          # As nFPM does: a glob source, or a destination ending in a slash,
+          # makes the destination a directory that takes each match's name.
+          pattern = !package["disable_globbing"] && item.fetch("src").match?(/[*?\[{]/)
+          single = paths.length == 1 && File.file?(paths.first) && type != "tree" && !pattern && !item.fetch("dst").end_with?("/")
           paths.each do |path|
             if File.directory?(path)
               target.mkpath

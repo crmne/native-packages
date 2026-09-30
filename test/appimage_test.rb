@@ -13,8 +13,9 @@ class AppImageTest < Minitest::Test
     @data = { "schema" => 1, "tool" => { "version" => NativePackages::VERSION, "nfpm" => "2.47.0" },
       "nfpm" => { "name" => "sample-app", "maintainer" => "Test <test@example.org>", "description" => "Sample app", "license" => "MIT",
         "contents" => [
-          { "src" => "@PAYLOAD@/sample-app", "dst" => "/usr/bin/sample-app", "file_info" => { "mode" => 0o755 } },
-          { "src" => "@PAYLOAD@/sample-app.desktop", "dst" => "/usr/share/applications/sample-app.desktop" },
+          # A glob source names a directory, as it does for nFPM.
+          { "src" => "@PAYLOAD@/sample-ap[p]", "dst" => "/usr/bin", "file_info" => { "mode" => 0o755 } },
+          { "src" => "@PAYLOAD@/sample-app.desktop", "dst" => "/usr/share/applications/" },
           { "src" => "@PAYLOAD@/sample-app.svg", "dst" => "/usr/share/icons/hicolor/scalable/apps/sample-app.svg" },
           { "src" => "@PAYLOAD@/sample-app.svg", "dst" => "/usr/share/doc/deb-only.svg", "packager" => "deb" }
         ] },
@@ -81,7 +82,7 @@ class AppImageTest < Minitest::Test
     assert_includes message, "exactly one desktop entry"
     setup_contents = lambda do |desktop|
       (@payload / "sample-app.desktop").write(desktop)
-      @data["nfpm"]["contents"].insert(1, { "src" => "@PAYLOAD@/sample-app.desktop", "dst" => "/usr/share/applications/sample-app.desktop" }) if @data["nfpm"]["contents"].length == 3
+      @data["nfpm"]["contents"].insert(1, { "src" => "@PAYLOAD@/sample-app.desktop", "dst" => "/usr/share/applications/" }) if @data["nfpm"]["contents"].length == 3
       FileUtils.rm_rf(@root / "dist")
       assert_raises(NativePackages::Error) { capture_io { configure.run_build(value: "1.2.3") } }.message
     end
