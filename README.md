@@ -48,7 +48,7 @@ record. Local builds work without a GitHub release or credentials.
 
 | Platform | Outputs |
 | --- | --- |
-| Linux | DEB, RPM, Arch Linux packages, Alpine APK, IPK, and source RPM |
+| Linux | DEB, RPM, AppImage, Arch Linux packages, Alpine APK, IPK, and source RPM |
 | macOS | DMG, using your packaging script; optional Apple signing and notarization |
 | Windows | MSIX, or Inno Setup installers using your packaging script |
 

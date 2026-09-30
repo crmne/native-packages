@@ -4,6 +4,7 @@ require_relative "configuration"
 require_relative "inspection"
 require_relative "native_recipe"
 require_relative "macos_signing"
+require_relative "appimage"
 
 module NativePackages
   class Build
@@ -31,7 +32,8 @@ module NativePackages
     def doctor(ids: [], formats: [], release: false, defer_recipes: false)
       configuration.validate
       selected = configuration.select(ids: ids, formats: formats)
-      nfpm_version if selected.values.any? { |target| (target.fetch("formats") & Configuration::NATIVE_FORMATS).empty? }
+      nfpm_version if selected.values.any? { |target| !(target.fetch("formats") - Configuration::NATIVE_FORMATS - ["appimage"]).empty? }
+      selected.each_value { |target| AppImage.new(root).doctor(target) if target.fetch("formats").include?("appimage") }
       selected.each do |id, target|
         next unless target["native"]
         metadata = configuration.target_tokens(configuration.tokens("9.8.7"), id, target, "/payload").merge("PACKAGE" => "/output/package", "FORMAT" => target.fetch("formats").first)
@@ -155,6 +157,14 @@ module NativePackages
                   packages = files(destination)
                   raise Error, "native recipe must create only its declared output" unless packages == [package_path]
                   native.check_output(package_path, format)
+                elsif format == "appimage"
+                  package = render_tree(configuration.package(target), configuration.target_tokens(info, id, target, payload))
+                  inspection = Inspection.new(root, configuration.data.fetch("libraries")).check(package, target, format)
+                  package_path, details = AppImage.new(root).build(package, target, destination, name: configuration.name, version: number,
+                    epoch: info.fetch("SOURCE_DATE_EPOCH"))
+                  inspection["appimage"] = details
+                  packages = files(destination)
+                  raise Error, "AppImage build must create only its package" unless packages == [package_path]
                 else
                   package = render_tree(configuration.package(target), configuration.target_tokens(info, id, target, payload))
                   if number.include?("-") && (package.fetch("version_schema", "semver") != "semver" || %w[prerelease version_metadata].any? { |key| package.key?(key) && !package[key].to_s.empty? })
@@ -174,6 +184,7 @@ module NativePackages
                   hook_tokens = configuration.target_tokens(info, id, target, payload).merge("PACKAGE" => packages.first.to_s, "FORMAT" => format)
                   run(*render_tree(target.fetch("after_package"), hook_tokens), env: { "NATIVE_PACKAGES_TARGET" => id, "NATIVE_PACKAGES_VERSION" => number })
                   raise Error, "after_package must preserve the package path and output set" unless files(destination) == packages
+                  AppImage.new(root).check(packages.first) if format == "appimage"
                 end
                 if native
                   native.check_output(packages.first, format)

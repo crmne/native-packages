@@ -124,7 +124,7 @@ jobs:
         if: inputs.version != ''
         run: |
           sudo apt-get update
-          sudo apt-get install -y libarchive-tools binutils xz-utils
+          sudo apt-get install -y libarchive-tools binutils xz-utils squashfs-tools
           go install "github.com/goreleaser/nfpm/v2/cmd/nfpm@v$NFPM_VERSION"
       - uses: actions/download-artifact@v4
         if: inputs.version != '' && inputs.source-artifact != ''

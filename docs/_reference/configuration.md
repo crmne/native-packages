@@ -97,8 +97,8 @@ letters, digits, and hyphens, starting with a letter or digit.
 | `after_package` | Command arguments run on each package before its hash is recorded. |
 | `native` | Required for DMG/Inno. Contains `command` and `output`. |
 
-Formats are `deb`, `rpm`, `archlinux`, `apk`, `ipk`, `srpm`, `msix`, `dmg`,
-and `inno`. See [Supported platforms](platforms.md) for their requirements.
+Formats are `deb`, `rpm`, `archlinux`, `apk`, `ipk`, `appimage`, `srpm`,
+`msix`, `dmg`, and `inno`. See [Supported platforms](platforms.md) for their requirements.
 
 Windows targets select only `[msix]` or `[inno]`; macOS targets select `[dmg]`.
 DMG and Inno each require a separate binary target. SRPM requires a separate

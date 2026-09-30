@@ -126,6 +126,10 @@ Both targets use the shared package metadata and file mappings. A target can
 have its own `nfpm` section to override them. Maps merge; lists replace the
 whole list, so a target-specific `contents` must list all of that target's files.
 
+Add `appimage` to a Linux target's formats for a single file that runs without
+installation. It needs one desktop entry and its icon among the contents; see
+[AppImage](../_reference/platforms.md#appimage).
+
 Use a separate musl or static build for Alpine. Changing `formats` alone
 does not change which systems a binary can run on.
 

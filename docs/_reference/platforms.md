@@ -19,6 +19,7 @@ libraries.
 | `archlinux` | Linux | Arch-compatible files and explicit dependencies. | nFPM, `readelf` for binaries. |
 | `apk` | Linux | Suitable Alpine files, usually musl or static binaries, and dependencies. | nFPM, `readelf` for binaries. |
 | `ipk` | Linux | Files for the device/distribution baseline, dependencies, and an `abi` label. | nFPM, `readelf` for binaries. |
+| `appimage` | Linux | The same files as the DEB/RPM, including one desktop entry and its icon. | `mksquashfs` (squashfs-tools), `curl`, `readelf`. |
 | `srpm` | Linux source target | RPM spec and source files. | nFPM; native RPM tooling for rebuild tests. |
 | `msix` | Windows | Windows binaries, identity, application assets, and capabilities. | nFPM; Windows tools for signing and installation tests. |
 | `dmg` | macOS | Complete app and a DMG script. | macOS, `lipo`, and your script's tools, such as `hdiutil`. |
@@ -47,6 +48,45 @@ binary into a musl build.
 For IPK, check which format your device's distribution release actually uses.
 The repository's IPK fixture targets OpenWrt 24.10.8; its coverage should not
 be treated as a claim about every OpenWrt version.
+
+## AppImage
+
+An AppImage is one executable file that runs without installation. Add
+`appimage` to a Linux binary target's `formats`; it uses the same `contents`
+as the other formats, so there is nothing else to describe:
+
+```yaml
+linux-amd64:
+  platform: linux
+  arch: amd64
+  libc: glibc
+  formats: [deb, rpm, appimage]
+```
+
+The package must install exactly one desktop entry under
+`/usr/share/applications`. Its `Exec` names the program the AppImage runs
+(found in `/usr/bin`, or an absolute path inside the package) and its `Icon`
+names an SVG or PNG under `/usr/share/icons` or `/usr/share/pixmaps`. A
+contents entry with `packager: appimage` is included only in the AppImage, and
+one with another packager is left out. Entries of type `ghost` are skipped.
+
+The output is `NAME-VERSION-ARCH.AppImage`, with AppImage's architecture names
+(`x86_64`, `aarch64`, `i686`, `armhf` for `amd64`, `arm64`, `386`, `arm7`).
+The file is the pinned AppImage runtime (type2-runtime 20251108, downloaded
+once into `.cache/native-packages` and checked against a built-in SHA-256)
+followed by a zstd SquashFS image. No `appimagetool` or nFPM is involved, the
+build does not run the binary, and an ARM64 AppImage can be built on an x86
+host. The same inputs and `SOURCE_DATE_EPOCH` give the same bytes.
+
+**Libraries are not bundled.** The AppImage uses the host's libraries, as the
+DEB and RPM do, and `build.json` lists what the binary links under
+`required_libraries` with `"libraries": "host"`. It therefore runs where your
+binary's glibc floor and those libraries are met, not on every Linux system.
+Build on the oldest distribution you support, or link statically, to widen
+that. The AppImage carries no update information and is not signed.
+
+Running an AppImage needs FUSE on the user's system, or
+`./App.AppImage --appimage-extract-and-run`.
 
 ## MSIX
 
@@ -87,7 +127,7 @@ An Arch package file and an AUR recipe are separate outputs: the former can
 be installed directly; the latter tells Arch tooling how to obtain and package
 your app.
 
-There is no Flatpak build/publication adapter, no NSIS/WiX adapter, and no
+There is no Flatpak or Snap build/publication adapter, no NSIS/WiX adapter, and no
 hosted APT/DNF index service. Keep those workflows in your app's release
 process if you need them.
 

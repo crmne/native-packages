@@ -75,7 +75,7 @@ jobs:
       - name: Install package inspection tools and nFPM
         run: |
           sudo apt-get update
-          sudo apt-get install -y libarchive-tools binutils
+          sudo apt-get install -y libarchive-tools binutils squashfs-tools
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
       - name: Run unit and package integration tests
         run: bundle exec ruby -Ilib -e 'Dir["test/*_test.rb"].sort.each { |path| require_relative path }'

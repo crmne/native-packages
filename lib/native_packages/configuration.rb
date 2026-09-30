@@ -1,12 +1,13 @@
 # frozen_string_literal: true
 
 require_relative "project"
+require_relative "appimage"
 
 module NativePackages
   class Configuration
     include Support
     NATIVE_FORMATS = %w[dmg inno].freeze
-    FORMATS = (%w[deb rpm archlinux apk ipk msix srpm] + NATIVE_FORMATS).freeze
+    FORMATS = (%w[deb rpm archlinux apk ipk msix srpm appimage] + NATIVE_FORMATS).freeze
     NFPM_VERSION = "2.47.0"
     NAMES = %w[native-packages.yaml native-packages.yml].freeze
     KEYS = %w[schema tool nfpm targets release assets templates repositories revisions libraries version_file version_section].freeze
@@ -59,8 +60,8 @@ module NativePackages
     def check_prerelease(version, selected, defer_recipes: false)
       return unless version.include?("-")
       raise Error, "prerelease builds require release.prereleases: true" unless data.fetch("release")["prereleases"] == true
-      unless selected.values.all? { |target| (target.fetch("formats") - %w[deb rpm dmg inno]).empty? } && (defer_recipes || data.fetch("templates").empty?)
-        raise Error, "prereleases support deb, rpm, dmg and inno only, without downstream recipes"
+      unless selected.values.all? { |target| (target.fetch("formats") - %w[deb rpm appimage dmg inno]).empty? } && (defer_recipes || data.fetch("templates").empty?)
+        raise Error, "prereleases support deb, rpm, appimage, dmg and inno only, without downstream recipes"
       end
     end
 
@@ -120,6 +121,10 @@ module NativePackages
         raise Error, "#{id}: SRPM requires a separate source target" if (formats.include?("srpm") && (kind != "source" || formats != ["srpm"])) || (kind == "source" && formats != ["srpm"])
         if kind == "binary" && target["platform"] == "linux"
           raise Error, "#{id}.libc: declare glibc, musl or static" unless %w[glibc musl static].include?(target["libc"])
+        end
+        if formats.include?("appimage")
+          raise Error, "#{id}: AppImage requires a Linux binary target" unless target["platform"] == "linux" && kind == "binary"
+          AppImage.architecture(target)
         end
         raise Error, "#{id}: IPK needs an explicit abi (device/distribution baseline)" if formats.include?("ipk") && target.fetch("abi", "").empty?
         input = mapping(target.fetch("input"), "#{id}.input")

@@ -42,7 +42,7 @@ class PrereleasePackagingTest < Minitest::Test
   def test_unreviewed_formats_and_downstream_recipes_are_rejected_before_build
     @data["release"]["prereleases"] = true
     @data["targets"]["linux"]["formats"] = %w[deb archlinux]
-    assert_includes assert_raises(NativePackages::Error) { builder.run_build(value: "1.2.3-alpha.1", dry_run: true) }.message, "deb, rpm, dmg and inno"
+    assert_includes assert_raises(NativePackages::Error) { builder.run_build(value: "1.2.3-alpha.1", dry_run: true) }.message, "deb, rpm, appimage, dmg and inno"
     @data["targets"]["linux"]["formats"] = ["deb"]
     (@root / "recipe.txt").write("@VERSION@\n")
     @data["templates"] = { "recipe.txt" => "recipe.txt" }

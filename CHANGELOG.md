@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Add the `appimage` format for Linux binary targets. It lays out the same
+  `contents` the DEB and RPM use in an AppDir, takes the desktop entry and its
+  icon from `/usr/share/applications` and the icon directories, packs them
+  with `mksquashfs`, and appends a pinned, checksum-verified AppImage runtime
+  (type2-runtime 20251108). Builds need no nFPM and no `appimagetool`, are
+  reproducible, and work for `amd64`, `arm64`, `386` and `arm7` from any
+  host. Libraries are not bundled: the AppImage uses the host's, like the DEB
+  and RPM, so the glibc floor of the binary still applies. Prereleases may
+  use it.
 - Publish Homebrew recipes with a deploy key (`HOMEBREW_TAP_SSH_KEY`) that can
   write to the tap alone, as an alternative to a token. The tap is cloned and
   pushed over SSH, checked against GitHub's published host keys.

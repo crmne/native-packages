@@ -8,7 +8,7 @@ nav_order: 9
 
 Use a prerelease to let people test an upcoming version before the stable
 release. native-packages supports alpha, beta, and release candidate packages
-for **DEB, RPM, DMG, and Inno Setup**.
+for **DEB, RPM, AppImage, DMG, and Inno Setup**.
 
 ## Enable preview versions
 
