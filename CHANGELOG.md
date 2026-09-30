@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.1 (2026-09-30)
+
+- Fix AppImage builds for contents with a glob source or a destination ending
+  in a slash: the destination is a directory that takes each match's name, as
+  under nFPM, instead of becoming the file itself.
+
 ## 0.8.0 (2026-09-30)
 
 - Add the `appimage` format for Linux binary targets. It lays out the same

@@ -67,7 +67,7 @@ Package publication's separate `packaging-checksums.txt` is also unchanged.
 
 ## Attest in the application's build job
 
-The examples use `v0.8.0` for readability. For release workflows, replace it
+The examples use `v0.8.1` for readability. For release workflows, replace it
 with that release's reviewed full commit SHA, not a mutable branch.
 After producing the final package, before uploading it, add this step to the
 job that built it:
@@ -79,7 +79,7 @@ permissions:
   attestations: write
 steps:
   # Existing checkout, build, platform signing and packaging steps go here.
-  - uses: crmne/native-packages/.github/actions/attest@v0.8.0
+  - uses: crmne/native-packages/.github/actions/attest@v0.8.1
     with:
       subject-path: dist/*.tar.gz
 ```
@@ -108,7 +108,7 @@ and install Ruby 3.2 or later with Ed25519-capable OpenSSL before the signing
 step. Then call:
 
 ```yaml
-- uses: crmne/native-packages/.github/actions/sign-release@v0.8.0
+- uses: crmne/native-packages/.github/actions/sign-release@v0.8.1
   with:
     directory: dist/release
     public-key: assets/update-public-key.hex

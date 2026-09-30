@@ -193,7 +193,7 @@ If several gem versions are installed, RubyGems lets you select the one required
 by the configuration:
 
 ```sh
-native-packages _0.8.0_ build --version 1.2.3
+native-packages _0.8.1_ build --version 1.2.3
 ```
 
 Bundler also works if you prefer to manage the gem in a Gemfile.

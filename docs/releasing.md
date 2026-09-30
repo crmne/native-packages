@@ -23,7 +23,7 @@ Update the gemspec, `NativePackages::VERSION`, example/version references and ch
 Create a GitHub release for that commit:
 
 ```sh
-gh release create v0.8.0 --target main --title 'native-packages 0.8.0' --notes-file release-notes.md
+gh release create v0.8.1 --target main --title 'native-packages 0.8.1' --notes-file release-notes.md
 ```
 
 Adding `--draft` permits review before publication and does not trigger the publisher. The tag must match the exact gem version and point to a commit on `main`. Set `--prerelease` only for a prerelease gem version.
@@ -36,7 +36,7 @@ If the workflow itself needs a correction, fix it on `main` and dispatch the
 corrected release workflow against the existing published tag:
 
 ```sh
-gh workflow run release.yml --ref main -f tag=v0.8.0
+gh workflow run release.yml --ref main -f tag=v0.8.1
 ```
 
 Validation resolves the original tag to an exact commit, requires it to be on
