@@ -39,3 +39,47 @@ features:
     title: Verified builds
     details: Check binary architecture and library requirements. Record file hashes and verify them before publishing.
 ---
+
+<video class="hero-film" controls muted loop playsinline preload="metadata" poster="{{ '/assets/images/launch-film-poster.jpg' | relative_url }}" aria-label="native-packages in under a minute: seventeen packaging files become one configuration" hidden>
+  <source src="{{ '/assets/videos/launch-film.mp4' | relative_url }}" type="video/mp4">
+</video>
+
+<style>
+  /* The theme sizes its hero for a square logo; the film is 16:9. */
+  .VPHero .hero-film {
+    display: block;
+    width: 100%;
+    max-width: 560px;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    margin: 0 auto;
+    border-radius: 12px;
+    background: #0d0e1a;
+  }
+  .VPHero .image-container:has(.hero-film) {
+    width: 100%;
+    height: auto;
+    padding: 0 24px;
+    transform: none;
+  }
+  @media (max-width: 959px) {
+    .VPHero .image:has(.hero-film) {
+      margin: 0 0 32px;
+    }
+  }
+</style>
+
+<script>
+  // The theme's hero takes a picture; the film takes its place where
+  // scripts run, and the logo stays where they do not.
+  (function () {
+    var film = document.querySelector(".hero-film");
+    var slot = document.querySelector(".VPHero .image-container");
+    if (!film || !slot) return;
+    slot.replaceChildren(film);
+    film.hidden = false;
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      film.play().catch(function () {});
+    }
+  })();
+</script>
