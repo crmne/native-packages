@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 (2026-09-30)
 
 - Add the `appimage` format for Linux binary targets. It lays out the same
   `contents` the DEB and RPM use in an AppDir, takes the desktop entry and its
