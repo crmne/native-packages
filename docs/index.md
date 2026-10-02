@@ -40,7 +40,7 @@ features:
     details: Check binary architecture and library requirements. Record file hashes and verify them before publishing.
 ---
 
-<video class="hero-film" controls muted loop playsinline preload="metadata" poster="{{ '/assets/images/launch-film-poster.jpg' | relative_url }}" aria-label="native-packages in under a minute: seventeen packaging files become one configuration" hidden>
+<video class="hero-film" controls muted loop playsinline preload="metadata" poster="{{ '/assets/images/launch-film-poster.jpg' | relative_url }}" aria-label="native-packages in under a minute: ZapFast, then seventeen packaging files become one configuration" hidden>
   <source src="{{ '/assets/videos/launch-film.mp4' | relative_url }}" type="video/mp4">
 </video>
 

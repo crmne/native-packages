@@ -13,7 +13,7 @@ Homebrew casks.
 
 You bring the compiled app. native-packages handles packaging and release updates.
 
-https://github.com/user-attachments/assets/aed88fc5-8453-47be-b428-c706481cac07
+https://github.com/user-attachments/assets/e3157514-570d-47b3-a2e9-aca70042a138
 
 [Documentation](https://native-packages.dev/)
 
