@@ -51,7 +51,7 @@ if msi
     # Windows Installer versions are numeric; the build number keeps each fixture distinct.
     build = version.include?('-') ? version.split('.').last : '3'
     ok = system('wix', 'build', File.join(__dir__, 'fixture.wxs'), '-arch', 'x64',
-      '-d', "Version=1.2.3.#{build}", '-d', "SourceDir=#{input}", '-o', output)
+      '-d', "Version=1.2.3.#{build}", '-d', "SourceDir=#{input}", '-pdbtype', 'none', '-o', output)
     abort 'WiX fixture compilation failed' unless ok
   RUBY
 elsif windows

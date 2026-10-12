@@ -141,9 +141,12 @@ payload, output, version = ARGV
 # Windows Installer versions are numeric: 1.2.3-beta.1 installs as 1.2.3.
 numeric = version.split("-").first
 success = system("wix", "build", File.join(__dir__, "hello.wxs"), "-arch", "x64",
-  "-d", "Version=#{numeric}", "-d", "SourceDir=#{payload}", "-o", output)
+  "-d", "Version=#{numeric}", "-d", "SourceDir=#{payload}", "-pdbtype", "none", "-o", output)
 abort "MSI build failed" unless success
 ```
+
+`-pdbtype none` stops WiX writing a `.wixpdb` debug file next to the MSI;
+the recipe may create only the declared output.
 
 Install WiX with `dotnet tool install --global wix --version 5.0.2`. Windows
 compares only the first three version fields, each at most 255.255.65535, so
