@@ -71,7 +71,7 @@ The command downloads the inputs, verifies their published hashes, and builds
 packages in `dist/packages/1.2.3/`. It skips `before_build` hooks. Every binary
 release input needs a matching checksum.
 
-DMG and Inno targets use prepared local directories. Download and unpack their
+DMG, MSI and Inno targets use prepared local directories. Download and unpack their
 inputs in the native build job, then use `--version`. See
 [macOS and Windows installers](native-recipes.md).
 

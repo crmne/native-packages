@@ -14,6 +14,10 @@ root.mkpath
 runner = Object.new.extend(NativePackages::Support)
 runner.define_singleton_method(:root) { root }
 windows = host == "windows"
+# Windows covers both installer adapters; select one per run.
+format = windows ? ENV.fetch("NATIVE_PACKAGES_WINDOWS_FORMAT", "inno") : "dmg"
+raise "Unknown Windows format: #{format}" unless %w[inno msi dmg].include?(format)
+msi = format == "msi"
 identity = "NativePackagesFixture-#{SecureRandom.hex(8)}"
 versions = %w[1.2.3-alpha.1 1.2.3-alpha.2 1.2.3]
 payload = root / (windows ? "payload" : "NativeFixture.app")
@@ -25,7 +29,32 @@ arch = windows ? "amd64" : ({ "arm64" => "arm64", "x86_64" => "amd64" }.fetch(ru
 binary = windows ? payload / "app.exe" : payload / "Contents/MacOS/native-fixture"
 binary.dirname.mkpath
 
-if windows
+if msi
+  raise "WiX not found" unless runner.available?("wix")
+  # Per-machine, so the uninstall entry and files are easy to observe. Downgrades
+  # are allowed only so the fixture can roll back to the first build.
+  (root / "fixture.wxs").write(<<~WXS)
+    <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+      <Package Name="#{identity}" Manufacturer="native-packages tests" Version="$(Version)"
+        UpgradeCode="{#{SecureRandom.uuid.upcase}}" Scope="perMachine" Compressed="yes">
+        <MajorUpgrade AllowDowngrades="yes" />
+        <MediaTemplate EmbedCab="yes" />
+        <StandardDirectory Id="ProgramFiles64Folder">
+          <Directory Id="INSTALLFOLDER" Name="#{identity}" />
+        </StandardDirectory>
+        <Files Include="$(SourceDir)\\**" Directory="INSTALLFOLDER" />
+      </Package>
+    </Wix>
+  WXS
+  (root / "recipe.rb").write(<<~'RUBY')
+    input, output, version = ARGV
+    # Windows Installer versions are numeric; the build number keeps each fixture distinct.
+    build = version.include?('-') ? version.split('.').last : '3'
+    ok = system('wix', 'build', File.join(__dir__, 'fixture.wxs'), '-arch', 'x64',
+      '-d', "Version=1.2.3.#{build}", '-d', "SourceDir=#{input}", '-o', output)
+    abort 'WiX fixture compilation failed' unless ok
+  RUBY
+elsif windows
   compiler = ENV.fetch("NATIVE_PACKAGES_ISCC")
   raise "Inno compiler not found" unless File.file?(compiler)
   (root / "fixture.iss").write(<<~ISS)
@@ -66,14 +95,13 @@ else
   RUBY
 end
 
-format = windows ? "inno" : "dmg"
 data = { "schema" => 1, "tool" => { "version" => NativePackages::VERSION, "nfpm" => "2.47.0" },
   "nfpm" => { "name" => "native-fixture", "maintainer" => "Tests <test@example.org>", "description" => "Native fixture", "license" => "MIT" },
   "release" => { "prereleases" => true },
   "targets" => { host => { "platform" => host, "arch" => arch, "formats" => [format],
     "input" => { "kind" => "directory", "local" => payload.basename.to_s },
     "native" => { "command" => [RbConfig.ruby, "@ROOT@/recipe.rb", "@PAYLOAD@", "@PACKAGE@", "@VERSION@"],
-      "output" => "@NAME@-@TAG@-@PLATFORM@.#{windows ? 'exe' : 'dmg'}" } } } }
+      "output" => "@NAME@-@TAG@-@PLATFORM@.#{{ 'inno' => 'exe', 'msi' => 'msi', 'dmg' => 'dmg' }.fetch(format)}" } } } }
 (root / "native-packages.yaml").write(YAML.dump(data))
 builder = NativePackages::Build.new(NativePackages::Configuration.new(root / "native-packages.yaml"))
 packages = {}
@@ -111,11 +139,19 @@ versions.each_with_index do |version, index|
 end
 
 installed = root / "installed"
+installed_msi = nil
 observations = []
 begin
   (versions + [versions.first]).each do |version|
     package = packages.fetch(version)
-    if windows
+    if msi
+      # Windows Installer expects backslashed paths.
+      runner.run("msiexec", "/i", package.fetch("path").to_s.tr("/", "\\"), "/qn", "/norestart",
+        "INSTALLFOLDER=#{installed.to_s.tr('/', '\\')}\\", "/l*v", (root / "msiexec-#{observations.length}.log").to_s.tr("/", "\\"))
+      installed_msi = package.fetch("path")
+      executable = installed / "app.exe"
+      model = installed / "models/fixture.bin"
+    elsif windows
       runner.run(package.fetch("path"), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-", "/DIR=#{installed}")
       executable = installed / "app.exe"
       model = installed / "models/fixture.bin"
@@ -141,14 +177,16 @@ begin
     observations << { "expected" => version, "observed" => observed, "binary_sha256" => runner.sha256(executable), "model_preserved" => true }
   end
 ensure
-  if windows && (installed / "unins000.exe").file?
+  if msi && installed_msi
+    runner.run("msiexec", "/x", installed_msi.to_s.tr("/", "\\"), "/qn", "/norestart", "/l*v", (root / "msiexec-remove.log").to_s.tr("/", "\\"))
+  elsif windows && (installed / "unins000.exe").file?
     runner.run(installed / "unins000.exe", "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART")
   elsif !windows && installed.exist?
     FileUtils.remove_entry(installed)
   end
 end
 raise "Uninstall left the fixture executable" if windows && (installed / "app.exe").exist?
-result = { "schema" => 1, "tool" => NativePackages::VERSION, "host" => host, "arch" => arch,
+result = { "schema" => 1, "tool" => NativePackages::VERSION, "host" => host, "format" => format, "arch" => arch,
   "fixture_only" => true, "install_upgrade_rollback" => observations, "removed" => true,
   "packages" => packages.transform_values { |record| { "path" => record.fetch("path").relative_path_from(root).to_s, "sha256" => runner.sha256(record.fetch("path")) } } }
 (root / "native-results.json").write(JSON.pretty_generate(result) + "\n")

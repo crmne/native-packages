@@ -1,3 +1,4 @@
+param([ValidateSet('inno', 'msi')] [string] $Format = 'inno')
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -10,6 +11,18 @@ foreach ($line in $variables) {
     if ($line -match '^([^=]+)=(.*)$' -and $Matches[1] -notin @('HOME', 'CODEX_HOME')) {
         [Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], 'Process')
     }
+}
+
+$env:NATIVE_PACKAGES_WINDOWS_FORMAT = $Format
+if ($Format -eq 'msi') {
+    if (!(Get-Command wix -ErrorAction SilentlyContinue)) {
+        & dotnet tool install --global wix --version 5.0.2
+        if ($LASTEXITCODE -ne 0) { throw 'WiX installation failed' }
+        $env:PATH = "$env:PATH;$(Join-Path $env:USERPROFILE '.dotnet\tools')"
+    }
+    & ruby -Ilib test/native_acceptance.rb (Join-Path $env:RUNNER_TEMP 'native-msi-acceptance')
+    if ($LASTEXITCODE -ne 0) { throw 'Native MSI acceptance failed' }
+    exit 0
 }
 
 $installedTool = $null

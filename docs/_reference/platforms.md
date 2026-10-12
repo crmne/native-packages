@@ -23,10 +23,11 @@ libraries.
 | `srpm` | Linux source target | RPM spec and source files. | nFPM; native RPM tooling for rebuild tests. |
 | `msix` | Windows | Windows binaries, identity, application assets, and capabilities. | nFPM; Windows tools for signing and installation tests. |
 | `dmg` | macOS | Complete app and a DMG script. | macOS, `lipo`, and your script's tools, such as `hdiutil`. |
+| `msi` | Windows | Complete app and a Windows Installer recipe/wrapper, such as a WiX project. | Windows and your installed MSI toolset, such as WiX. |
 | `inno` | Windows | Complete app and an Inno Setup recipe/wrapper. | Windows and your installed Inno compiler. |
 
 The supported nFPM version is **2.47.0**. It writes package files from your
-prepared contents. Native DMG and Inno targets call your scripts instead.
+prepared contents. Native DMG, MSI and Inno targets call your scripts instead.
 Archive inputs also require `bsdtar`; release downloads require `curl`.
 
 ## Linux compatibility
@@ -105,7 +106,7 @@ project's Windows acceptance tests do. Those tests found that Windows rejected
 nFPM 2.47.0's built-in signature with `0x80096010`. An MSIX file built
 successfully is not yet evidence that Windows will accept and install it.
 
-## DMG and Inno Setup
+## DMG, MSI and Inno Setup
 
 These formats run on their native host and each require a separate binary
 target with a local directory input. macOS inspection supports `amd64`,
@@ -127,7 +128,7 @@ An Arch package file and an AUR recipe are separate outputs: the former can
 be installed directly; the latter tells Arch tooling how to obtain and package
 your app.
 
-There is no Flatpak or Snap build/publication adapter, no NSIS/WiX adapter, and no
+There is no Flatpak or Snap build/publication adapter, no NSIS adapter, and no
 hosted APT/DNF index service. Keep those workflows in your app's release
 process if you need them.
 

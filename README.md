@@ -52,10 +52,10 @@ record. Local builds work without a GitHub release or credentials.
 | --- | --- |
 | Linux | DEB, RPM, AppImage, Arch Linux packages, Alpine APK, IPK, and source RPM |
 | macOS | DMG, using your packaging script; optional Apple signing and notarization |
-| Windows | MSIX, or Inno Setup installers using your packaging script |
+| Windows | MSIX, or MSI and Inno Setup installers using your packaging script |
 
-Each target needs files built for that platform. DMG and Inno builds run on
-macOS and Windows respectively. See [supported platforms](docs/_reference/platforms.md)
+Each target needs files built for that platform. DMG builds run on macOS;
+MSI and Inno builds run on Windows. See [supported platforms](docs/_reference/platforms.md)
 for prerequisites and distribution recipes.
 
 ## Guides

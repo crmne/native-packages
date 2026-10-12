@@ -1,17 +1,17 @@
 ---
 title: macOS and Windows installers
-description: Connect your DMG or Inno Setup script to the same build and publication process as your Linux packages.
+description: Connect your DMG, MSI or Inno Setup script to the same build and publication process as your Linux packages.
 nav_order: 5
 ---
 
 # macOS and Windows installers
 
-This guide shows how to connect an existing DMG or Inno Setup script to
+This guide shows how to connect an existing DMG, MSI or Inno Setup script to
 native-packages. You supply a built app and a packaging script. The build
 command checks the app, runs your script, and records the finished installer's
 checksum.
 
-Build **DMGs on macOS** and **Inno installers on Windows**. These targets use
+Build **DMGs on macOS** and **MSI or Inno installers on Windows**. These targets use
 your native tools and do not need an nFPM executable.
 
 ## Prepare your app
@@ -54,14 +54,17 @@ targets:
   windows-amd64:
     platform: windows
     arch: amd64
-    formats: [inno]
+    formats: [msi]
     input:
       kind: directory
       local: dist/windows
     native:
-      command: [ruby, packaging/setup.rb, '@PAYLOAD@', '@PACKAGE@', '@VERSION@']
-      output: 'hello-@TAG@-windows-setup.exe'
+      command: [ruby, packaging/msi.rb, '@PAYLOAD@', '@PACKAGE@', '@VERSION@']
+      output: 'hello-@TAG@-windows-amd64.msi'
 ```
+
+For an Inno Setup installer instead, use `formats: [inno]` and an `.exe`
+output. A Windows target builds one installer format.
 
 The `nfpm` section still holds shared package metadata, and `tool.nfpm` keeps
 mixed-platform configurations consistent. Native targets use `native.command`
@@ -110,6 +113,44 @@ abort "DMG verification failed" unless system("hdiutil", "verify", output)
 This places the app and an Applications shortcut inside a compressed disk
 image. Adapt the volume name and app name to your project.
 
+### A Windows Installer (MSI) project
+
+Keep your installer's WiX source in the repository. This minimal
+`packaging/hello.wxs` (WiX Toolset 5) installs everything in the payload
+for all users and replaces earlier versions on upgrade:
+
+```xml
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Hello" Manufacturer="Your Name" Version="$(Version)"
+    UpgradeCode="{00000000-0000-0000-0000-000000000000}" Scope="perMachine" Compressed="yes">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Hello" />
+    </StandardDirectory>
+    <Files Include="$(SourceDir)\**" Directory="INSTALLFOLDER" />
+  </Package>
+</Wix>
+```
+
+Generate your own `UpgradeCode` once and never change it: it is how Windows
+recognizes an upgrade. Then have `packaging/msi.rb` build it:
+
+```ruby
+payload, output, version = ARGV
+# Windows Installer versions are numeric: 1.2.3-beta.1 installs as 1.2.3.
+numeric = version.split("-").first
+success = system("wix", "build", File.join(__dir__, "hello.wxs"), "-arch", "x64",
+  "-d", "Version=#{numeric}", "-d", "SourceDir=#{payload}", "-o", output)
+abort "MSI build failed" unless success
+```
+
+Install WiX with `dotnet tool install --global wix --version 5.0.2`. Windows
+compares only the first three version fields, each at most 255.255.65535, so
+release candidates of one version upgrade each other in place. Per-user
+installs, shortcuts, file associations, and closing a running app are part of
+your WiX project; see the [WiX documentation](https://docs.firegiant.com/wix/).
+
 ### An Inno Setup script
 
 Keep your app's `.iss` recipe in the repository. Have `packaging/setup.rb`
@@ -143,11 +184,11 @@ native-packages build --version 1.2.3 --target windows-amd64 --output dist/windo
 ```
 
 `doctor` checks the host and the command's executable. Your script checks its
-additional tools, such as the Inno compiler. `validate` and `build --dry-run`
+additional tools, such as WiX or the Inno compiler. `validate` and `build --dry-run`
 do not execute it.
 
 The build checks Mach-O or PE architecture, runs the script, and checks that
-it produced exactly the declared DMG or EXE. Test installation, startup,
+it produced exactly the declared DMG, MSI or EXE. Test installation, startup,
 upgrades, and removal separately for your app.
 
 ## Preserve the prepared input

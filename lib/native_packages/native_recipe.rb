@@ -76,6 +76,9 @@ module NativePackages
           next false if file.size < 512
           file.seek(-512, IO::SEEK_END)
           file.read(4) == "koly"
+        elsif format == "msi"
+          # Windows Installer databases are OLE compound files.
+          file.size >= 512 && file.read(8) == "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1".b
         else
           next false unless file.size >= 64 && file.read(2) == "MZ"
           file.seek(0x3c)

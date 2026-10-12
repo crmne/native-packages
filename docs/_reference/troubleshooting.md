@@ -36,7 +36,7 @@ Linux and MSIX packaging require nFPM 2.47.0. Linux binary inspection needs
 `readelf`; archive extraction needs `bsdtar`. Install these using the
 [setup instructions](../_guides/getting-started.md#1-install-the-tools).
 
-DMG and Inno targets do not require an nFPM executable. If you only intend to
+DMG, MSI and Inno targets do not require an nFPM executable. If you only intend to
 build a native target, select it explicitly so `doctor` does not check Linux
 targets from the same configuration.
 

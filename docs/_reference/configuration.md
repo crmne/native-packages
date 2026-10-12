@@ -48,7 +48,7 @@ command needed to install and select the configured gem.
 
 `nfpm` is named after the helper that writes Linux packages and MSIX files.
 It holds the package's metadata, files, dependencies, and package-manager
-settings. Native DMG and Inno targets also read the shared metadata.
+settings. Native DMG, MSI and Inno targets also read the shared metadata.
 
 Every target needs nonempty `maintainer`, `description`, and `license` values.
 Non-native targets need a `contents` list. The shared package name may contain
@@ -95,13 +95,13 @@ letters, digits, and hyphens, starting with a letter or digit.
 | `compiler_target` | Optional value for `@TARGET@`; otherwise it is the target ID. |
 | `before_build` | Command arguments run before copying a local input. |
 | `after_package` | Command arguments run on each package before its hash is recorded. |
-| `native` | Required for DMG/Inno. Contains `command` and `output`. |
+| `native` | Required for DMG, MSI and Inno. Contains `command` and `output`. |
 
 Formats are `deb`, `rpm`, `archlinux`, `apk`, `ipk`, `appimage`, `srpm`,
-`msix`, `dmg`, and `inno`. See [Supported platforms](platforms.md) for their requirements.
+`msix`, `dmg`, `msi`, and `inno`. See [Supported platforms](platforms.md) for their requirements.
 
-Windows targets select only `[msix]` or `[inno]`; macOS targets select `[dmg]`.
-DMG and Inno each require a separate binary target. SRPM requires a separate
+Windows targets select only `[msix]`, `[msi]` or `[inno]`; macOS targets select `[dmg]`.
+DMG, MSI and Inno each require a separate binary target. SRPM requires a separate
 `kind: source` target with only `[srpm]`.
 
 ### Inputs

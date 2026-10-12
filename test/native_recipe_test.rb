@@ -76,6 +76,32 @@ class NativeRecipeTest < Minitest::Test
     end
   end
 
+  def test_msi_targets_require_a_windows_installer_database
+    msi = "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1".b + ("\0".b * 504)
+    (@root / "fixture.msi").binwrite(msi)
+    windows = @data["targets"]["windows"]
+    windows["formats"] = ["msi"]
+    windows["native"]["output"] = "@NAME@-@TAG@-windows.exe"
+    assert_includes assert_raises(NativePackages::Error) { builder.configuration.validate }.message, "safe .msi filename"
+    windows["native"]["output"] = "@NAME@-@TAG@-windows.msi"
+    windows["platform"] = "macos"
+    assert_raises(NativePackages::Error) { builder.configuration.validate }
+    windows["platform"] = "windows"
+    assert builder.configuration.validate
+    fixture_host do
+      # The PE payload is not an installer database, so copying it is rejected.
+      assert_raises(NativePackages::Error) { capture_io { builder.run_build(value: "1.2.3", output: @root / "rejected") } }
+      refute_path_exists @root / "rejected"
+      windows["native"]["command"] = [RbConfig.ruby, "-rfileutils", "-e", "FileUtils.cp(ARGV[0], ARGV[1])", (@root / "fixture.msi").to_s, "@PACKAGE@"]
+      build = builder
+      output = @root / "result"
+      capture_io { build.run_build(value: "1.2.3", output: output) }
+      record = build.verify(output).fetch("packages").first
+      assert_equal "native-fixture-v1.2.3-windows.msi", File.basename(record.fetch("path"))
+      assert_equal "pe", record.fetch("validation").fetch("kind")
+    end
+  end
+
   def test_windows_after_package_hook_remains_independent_of_apple_signing
     @data["targets"]["windows"]["after_package"] = [RbConfig.ruby, "-e", "File.open(ARGV[0], 'ab') { |file| file.write('hook') }", "@PACKAGE@"]
     previous = NativePackages::MacosSigning::VARIABLES.to_h { |name| [name, ENV[name]] }

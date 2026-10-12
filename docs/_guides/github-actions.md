@@ -101,7 +101,7 @@ The workflow passes the same target selection to build and publication.
 It requires every format declared for those targets. An empty selection
 means all configured targets.
 
-Build DMG and Inno targets in your own macOS and Windows jobs with the CLI.
+Build DMG, MSI and Inno targets in your own macOS and Windows jobs with the CLI.
 See [Building across platforms](multi-platform.md) for combining their outputs
 and generating recipes after all packages are available.
 

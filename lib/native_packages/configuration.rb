@@ -6,7 +6,7 @@ require_relative "appimage"
 module NativePackages
   class Configuration
     include Support
-    NATIVE_FORMATS = %w[dmg inno].freeze
+    NATIVE_FORMATS = %w[dmg inno msi].freeze
     FORMATS = (%w[deb rpm archlinux apk ipk msix srpm appimage] + NATIVE_FORMATS).freeze
     NFPM_VERSION = "2.47.0"
     NAMES = %w[native-packages.yaml native-packages.yml].freeze
@@ -60,8 +60,8 @@ module NativePackages
     def check_prerelease(version, selected, defer_recipes: false)
       return unless version.include?("-")
       raise Error, "prerelease builds require release.prereleases: true" unless data.fetch("release")["prereleases"] == true
-      unless selected.values.all? { |target| (target.fetch("formats") - %w[deb rpm appimage dmg inno]).empty? } && (defer_recipes || data.fetch("templates").empty?)
-        raise Error, "prereleases support deb, rpm, appimage, dmg and inno only, without downstream recipes"
+      unless selected.values.all? { |target| (target.fetch("formats") - %w[deb rpm appimage dmg inno msi]).empty? } && (defer_recipes || data.fetch("templates").empty?)
+        raise Error, "prereleases support deb, rpm, appimage, dmg, inno and msi only, without downstream recipes"
       end
     end
 
@@ -97,11 +97,11 @@ module NativePackages
         kind = target.fetch("kind", "binary")
         raise Error, "targets.#{id}.kind: use binary, data or source" unless %w[binary data source].include?(kind)
         raise Error, "#{id}: MSIX requires a Windows target with only msix format" if formats.include?("msix") && (target["platform"] != "windows" || formats != ["msix"])
-        raise Error, "#{id}: Windows targets require msix or inno" if target["platform"] == "windows" && ![["msix"], ["inno"]].include?(formats)
+        raise Error, "#{id}: Windows targets require msix, inno or msi" if target["platform"] == "windows" && ![["msix"], ["inno"], ["msi"]].include?(formats)
         raise Error, "#{id}: macOS targets require dmg" if target["platform"] == "macos" && formats != ["dmg"]
         native = !(formats & NATIVE_FORMATS).empty?
         if native
-          expected = { "dmg" => "macos", "inno" => "windows" }[formats.first]
+          expected = { "dmg" => "macos", "inno" => "windows", "msi" => "windows" }[formats.first]
           raise Error, "#{id}: native formats require a separate binary target on their native platform" unless formats.length == 1 && expected == target["platform"] && kind == "binary"
           recipe = mapping(target.fetch("native"), "#{id}.native")
           raise Error, "#{id}.native: expected command and output" unless recipe.keys.sort == %w[command output]
@@ -110,13 +110,13 @@ module NativePackages
             raise Error, "#{id}.native.command: use command arguments including @PACKAGE@"
           end
           filename = render(recipe.fetch("output"), target_tokens(metadata, id, target, "/payload"))
-          extension = formats == ["dmg"] ? ".dmg" : ".exe"
+          extension = { "dmg" => ".dmg", "inno" => ".exe", "msi" => ".msi" }.fetch(formats.first)
           unless /\A[a-zA-Z0-9][a-zA-Z0-9._+-]*\z/.match?(filename) && filename.end_with?(extension)
             raise Error, "#{id}.native.output: expected a safe #{extension} filename"
           end
           render_tree(command, target_tokens(metadata, id, target, "/payload").merge("PACKAGE" => "/output/#{filename}", "FORMAT" => formats.first))
         elsif target.key?("native")
-          raise Error, "#{id}: native commands require a dmg or inno target"
+          raise Error, "#{id}: native commands require a dmg, inno or msi target"
         end
         raise Error, "#{id}: SRPM requires a separate source target" if (formats.include?("srpm") && (kind != "source" || formats != ["srpm"])) || (kind == "source" && formats != ["srpm"])
         if kind == "binary" && target["platform"] == "linux"

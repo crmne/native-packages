@@ -133,6 +133,9 @@ jobs:
       - name: Build, install, upgrade, roll back and remove Inno fixtures
         shell: pwsh
         run: ./test/native_windows_acceptance.ps1
+      - name: Build, install, upgrade, roll back and remove MSI fixtures
+        shell: pwsh
+        run: ./test/native_windows_acceptance.ps1 -Format msi
 
   macos-install:
     runs-on: macos-latest

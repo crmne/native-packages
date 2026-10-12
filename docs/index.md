@@ -28,7 +28,7 @@ features:
     details: Create DEB, RPM, AppImage, Arch, Alpine, and IPK packages from your compatible Linux builds.
   - icon: 🖥️
     title: Native installers
-    details: Connect your macOS DMG and Windows Inno Setup scripts, or package Windows apps as MSIX.
+    details: Connect your macOS DMG script and your Windows MSI or Inno Setup script, or package Windows apps as MSIX.
   - icon: 🚀
     title: Release automation
     details: Build from local files or release assets. Add packaging to GitHub Actions and upload the finished packages.
