@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.0 (2026-10-12)
+
+- Add the `msi` format for Windows targets. Like `inno`, it runs the app's own
+  recipe, such as a WiX project, and checks that the output is a Windows
+  Installer database named `.msi`. Prereleases may use it.
+
 ## 0.8.1 (2026-09-30)
 
 - Fix AppImage builds for contents with a glob source or a destination ending
