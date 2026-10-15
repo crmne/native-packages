@@ -42,6 +42,12 @@ defaults:
       render_with_liquid: false
 
 jekyll_vitepress:
+  seo:
+    image:
+      path: /assets/images/launch-film-poster.jpg
+      alt: "native-packages: One config. Every package."
+      width: 1280
+      height: 720
   version:
     file: ../lib/native_packages/support.rb
   branding:

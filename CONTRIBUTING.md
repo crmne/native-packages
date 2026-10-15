@@ -49,6 +49,10 @@ path dependency. To test changes from a local theme checkout, use Bundler's
 temporary path configuration or a separate Gemfile, and keep that local setup
 out of the committed lockfile.
 
+Social previews use the launch-film poster, configured under
+`jekyll_vitepress.seo.image` in `docs/_config.yml`. Keep it a JPEG or PNG with
+matching width, height, and alt text; the SVG logo is for the site itself.
+
 ### Writing a guide
 
 Put tutorials in `docs/_guides/` and reference pages in `docs/_reference/`.
