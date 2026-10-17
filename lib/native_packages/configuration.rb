@@ -86,7 +86,7 @@ module NativePackages
       metadata = tokens("9.8.7", epoch: 1_767_225_600)
       targets.each do |id, target|
         raise Error, "invalid target name: #{id}" unless /\A[a-z0-9][a-z0-9-]*\z/.match?(id)
-        unknown = target.keys - %w[platform arch libc abi kind formats input nfpm before_build after_package compiler_target native]
+        unknown = target.keys - %w[platform arch libc abi kind formats input nfpm before_build after_package compiler_target native appimage]
         raise Error, "targets.#{id}: unknown fields #{unknown.join(', ')}" unless unknown.empty?
         formats = target.fetch("formats")
         unless formats.is_a?(Array) && !formats.empty? && formats.uniq == formats && (formats - FORMATS).empty?
@@ -125,6 +125,13 @@ module NativePackages
         if formats.include?("appimage")
           raise Error, "#{id}: AppImage requires a Linux binary target" unless target["platform"] == "linux" && kind == "binary"
           AppImage.architecture(target)
+        elsif target.key?("appimage")
+          raise Error, "#{id}.appimage: only for targets that build an AppImage"
+        end
+        begin
+          update_information(target, "9.8.7")
+        rescue Error => error
+          raise Error, "#{id}.#{error.message}"
         end
         raise Error, "#{id}: IPK needs an explicit abi (device/distribution baseline)" if formats.include?("ipk") && target.fetch("abi", "").empty?
         input = mapping(target.fetch("input"), "#{id}.input")
@@ -160,6 +167,12 @@ module NativePackages
       end
       project.repositories
       true
+    end
+
+    # The AppImage update information for `target`, checked against the
+    # AppImage `version` builds, or nil.
+    def update_information(target, version)
+      AppImage.update_information(target, name: name, version: version, repository: data.fetch("release")["repository"])
     end
 
     def tokens(version, epoch: nil)

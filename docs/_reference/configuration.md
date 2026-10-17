@@ -96,6 +96,7 @@ letters, digits, and hyphens, starting with a letter or digit.
 | `before_build` | Command arguments run before copying a local input. |
 | `after_package` | Command arguments run on each package before its hash is recorded. |
 | `native` | Required for DMG, MSI and Inno. Contains `command` and `output`. |
+| `appimage` | Optional for AppImage targets: `update_information`, embedded with a `.zsync` file beside the AppImage. See [AppImage](platforms.md#update-information). |
 
 Formats are `deb`, `rpm`, `archlinux`, `apk`, `ipk`, `appimage`, `srpm`,
 `msix`, `dmg`, `msi`, and `inno`. See [Supported platforms](platforms.md) for their requirements.

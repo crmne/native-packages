@@ -33,7 +33,9 @@ module NativePackages
       configuration.validate
       selected = configuration.select(ids: ids, formats: formats)
       nfpm_version if selected.values.any? { |target| !(target.fetch("formats") - Configuration::NATIVE_FORMATS - ["appimage"]).empty? }
-      selected.each_value { |target| AppImage.new(root).doctor(target) if target.fetch("formats").include?("appimage") }
+      selected.each_value do |target|
+        AppImage.new(root).doctor(target, update: !target["appimage"].nil?) if target.fetch("formats").include?("appimage")
+      end
       selected.each do |id, target|
         next unless target["native"]
         metadata = configuration.target_tokens(configuration.tokens("9.8.7"), id, target, "/payload").merge("PACKAGE" => "/output/package", "FORMAT" => target.fetch("formats").first)
@@ -160,11 +162,12 @@ module NativePackages
                 elsif format == "appimage"
                   package = render_tree(configuration.package(target), configuration.target_tokens(info, id, target, payload))
                   inspection = Inspection.new(root, configuration.data.fetch("libraries")).check(package, target, format)
-                  package_path, details = AppImage.new(root).build(package, target, destination, name: configuration.name, version: number,
-                    epoch: info.fetch("SOURCE_DATE_EPOCH"))
+                  package_path, details, zsync = AppImage.new(root).build(package, target, destination, name: configuration.name, version: number,
+                    epoch: info.fetch("SOURCE_DATE_EPOCH"), update: configuration.update_information(target, number))
                   inspection["appimage"] = details
-                  packages = files(destination)
-                  raise Error, "AppImage build must create only its package" unless packages == [package_path]
+                  outputs = [package_path, zsync].compact.sort
+                  raise Error, "AppImage build must create only its package and .zsync file" unless files(destination) == outputs
+                  packages = [package_path]
                 else
                   package = render_tree(configuration.package(target), configuration.target_tokens(info, id, target, payload))
                   if number.include?("-") && (package.fetch("version_schema", "semver") != "semver" || %w[prerelease version_metadata].any? { |key| package.key?(key) && !package[key].to_s.empty? })
@@ -180,19 +183,23 @@ module NativePackages
                   packages = files(destination)
                   raise Error, "nFPM did not create exactly one #{format} package" unless packages.length == 1
                 end
+                outputs ||= packages
                 if target["after_package"]
                   hook_tokens = configuration.target_tokens(info, id, target, payload).merge("PACKAGE" => packages.first.to_s, "FORMAT" => format)
                   run(*render_tree(target.fetch("after_package"), hook_tokens), env: { "NATIVE_PACKAGES_TARGET" => id, "NATIVE_PACKAGES_VERSION" => number })
-                  raise Error, "after_package must preserve the package path and output set" unless files(destination) == packages
+                  raise Error, "after_package must preserve the package path and output set" unless files(destination) == outputs
                   AppImage.new(root).check(packages.first) if format == "appimage"
+                  AppImage.new(root).check_zsync(zsync, packages.first) if format == "appimage" && zsync
                 end
                 if native
                   native.check_output(packages.first, format)
                   raise Error, "native recipes/signing must not change their input payload" unless native.digest(payload) == payload_digest
                 end
                 inspection["apple"] = signing.notarize(packages.first) if signing
-                records << { "target" => id, "format" => format, "path" => packages.first.relative_path_from(staging).to_s,
+                record = { "target" => id, "format" => format, "path" => packages.first.relative_path_from(staging).to_s,
                   "sha256" => sha256(packages.first), "validation" => inspection }
+                record["zsync"] = zsync.relative_path_from(staging).to_s if format == "appimage" && zsync
+                records << record
               end
             end
           end
@@ -381,7 +388,7 @@ module NativePackages
       end
       destinations.each do |destination|
         if destination == "github"
-          paths = manifest.fetch("packages").map { |entry| output / entry.fetch("path") }
+          paths = manifest.fetch("packages").flat_map { |entry| [entry.fetch("path"), entry["zsync"]].compact.map { |path| output / path } }
           paths += manifest.fetch("files").keys.grep(/-packaging\.tar\.xz\z/).map { |path| output / path }
           names = paths.map { |path| path.basename.to_s }
           raise Error, "duplicate release asset names; give variants distinct nFPM names/releases" unless names.uniq == names

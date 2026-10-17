@@ -19,7 +19,7 @@ libraries.
 | `archlinux` | Linux | Arch-compatible files and explicit dependencies. | nFPM, `readelf` for binaries. |
 | `apk` | Linux | Suitable Alpine files, usually musl or static binaries, and dependencies. | nFPM, `readelf` for binaries. |
 | `ipk` | Linux | Files for the device/distribution baseline, dependencies, and an `abi` label. | nFPM, `readelf` for binaries. |
-| `appimage` | Linux | The same files as the DEB/RPM, including one desktop entry and its icon. | `mksquashfs` (squashfs-tools), `curl`, `readelf`. |
+| `appimage` | Linux | The same files as the DEB/RPM, including one desktop entry and its icon. | `mksquashfs` (squashfs-tools), `curl`, `readelf`; `zsyncmake` (zsync) with update information. |
 | `srpm` | Linux source target | RPM spec and source files. | nFPM; native RPM tooling for rebuild tests. |
 | `msix` | Windows | Windows binaries, identity, application assets, and capabilities. | nFPM; Windows tools for signing and installation tests. |
 | `dmg` | macOS | Complete app and a DMG script. | macOS, `lipo`, and your script's tools, such as `hdiutil`. |
@@ -84,7 +84,41 @@ DEB and RPM do, and `build.json` lists what the binary links under
 `required_libraries` with `"libraries": "host"`. It therefore runs where your
 binary's glibc floor and those libraries are met, not on every Linux system.
 Build on the oldest distribution you support, or link statically, to widen
-that. The AppImage carries no update information and is not signed.
+that. The AppImage is not signed.
+
+### Update information
+
+AppImageUpdate, AppImageLauncher, AM, Gear Lever and other updaters find a
+newer AppImage through the update information embedded in it, and download
+only the blocks that changed through a `.zsync` file published beside it.
+Give the target an `appimage.update_information`:
+
+```yaml
+linux-amd64:
+  platform: linux
+  arch: amd64
+  libc: glibc
+  formats: [appimage]
+  appimage:
+    update_information: gh-releases-zsync|owner|app|latest|app-*-x86_64.AppImage.zsync
+```
+
+The string goes into the runtime's `.upd_info` section, and the build reads
+it back from the finished AppImage. `zsyncmake` then writes
+`NAME-VERSION-ARCH.AppImage.zsync` beside it, with the AppImage's file name
+as its relative URL, and the build checks the file's name, length and SHA-1
+against the AppImage. `build.json` records the `.zsync` file with its
+package, and `publish --to github` attaches both. The same inputs give the
+same bytes for both files.
+
+Two forms are accepted: `gh-releases-zsync|OWNER|REPOSITORY|TAG|PATTERN`,
+where `TAG` is usually `latest` (the newest stable release), and
+`zsync|https://URL.zsync`. A GitHub string must name `release.repository`,
+and its pattern must match the target's `.zsync` file name, so validation
+fails before a release could ship an AppImage whose updaters look for a file
+that is not there. Each architecture needs its own target with its own
+pattern. An `after_package` hook must leave the AppImage as it is, or the
+`.zsync` file no longer describes it and the build fails.
 
 Running an AppImage needs FUSE on the user's system, or
 `./App.AppImage --appimage-extract-and-run`.

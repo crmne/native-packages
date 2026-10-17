@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Embed AppImage update information. A target's
+  `appimage.update_information` (`gh-releases-zsync|...` or `zsync|https://...`)
+  goes into the runtime's `.upd_info` section, and the build writes the
+  matching `.zsync` file beside the AppImage with `zsyncmake`, records it in
+  `build.json`, and attaches it on `publish --to github`. Validation checks a
+  GitHub string against `release.repository` and its pattern against the
+  target's `.zsync` file name; the build reads the string back and checks the
+  `.zsync` file against the AppImage.
+
 ## 0.9.0 (2026-10-12)
 
 - Add the `msi` format for Windows targets. Like `inno`, it runs the app's own

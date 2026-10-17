@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "digest"
+
 module NativePackages
   # Builds a type 2 AppImage from the same contents nFPM packages: the files
   # are laid out in an AppDir, packed with mksquashfs and appended to a pinned
@@ -17,6 +19,13 @@ module NativePackages
       "arm7" => ["armhf", "e9060d37577b8a29914ec12d8740add24e19ff29012fb1fa0f60daf62db0688d"]
     }.freeze
     ICON_DIRECTORIES = %w[usr/share/icons usr/share/pixmaps].freeze
+    # The runtime's ELF section that AppImageUpdate and the other updaters
+    # read: a NUL-terminated string in a fixed 1024 bytes.
+    UPDATE_SECTION = ".upd_info"
+    # AppImage's update information formats, without the `bintray-zsync`
+    # and `pling-v1-zsync` services that no longer exist.
+    GITHUB_UPDATE = /\Agh-releases-zsync\|([A-Za-z0-9_.-]+)\|([A-Za-z0-9_.-]+)\|([^|\s]+)\|([^|\s]+\.zsync)\z/
+    URL_UPDATE = %r{\Azsync\|https://[^|\s]+\.zsync\z}
     attr_reader :root
 
     def initialize(root)
@@ -29,10 +38,81 @@ module NativePackages
 
     def self.filename(name, version, target) = "#{name}-#{version}-#{architecture(target)}.AppImage"
 
-    def doctor(target)
+    # The target's update information, checked against the AppImage it
+    # describes: a GitHub string must name the release repository, and its
+    # file pattern must match this target's `.zsync` file, so a release
+    # never ships an AppImage whose updaters look for a file that is not
+    # there. Returns nil when the target has none.
+    def self.update_information(target, name:, version:, repository:)
+      settings = target["appimage"]
+      return nil if settings.nil?
+      raise Error, "appimage: expected a mapping" unless settings.is_a?(Hash)
+      unknown = settings.keys - %w[update_information]
+      raise Error, "appimage: unknown fields #{unknown.join(', ')}" unless unknown.empty?
+      value = settings["update_information"]
+      raise Error, "appimage.update_information: expected a string" unless value.is_a?(String) && !value.empty?
+      raise Error, "appimage.update_information: at most 1023 bytes" if value.bytesize > 1023
+      if (match = GITHUB_UPDATE.match(value))
+        owner, project, _tag, pattern = match.captures
+        unless "#{owner}/#{project}".casecmp?(repository.to_s)
+          raise Error, "appimage.update_information names #{owner}/#{project}, but release.repository is #{repository.inspect}"
+        end
+        zsync = "#{filename(name, version, target)}.zsync"
+        unless File.fnmatch?(pattern, zsync, File::FNM_PATHNAME)
+          raise Error, "appimage.update_information: #{pattern} does not match #{zsync}"
+        end
+      elsif !URL_UPDATE.match?(value)
+        raise Error, "appimage.update_information: use gh-releases-zsync|OWNER|REPOSITORY|TAG|FILE.zsync or zsync|https://URL.zsync"
+      end
+      value
+    end
+
+    # The file offset and size of the ELF section `name` in `bytes`, or nil.
+    # Every AppImage runtime is a little-endian ELF file, 32 or 64 bits.
+    def self.section(bytes, name)
+      raise Error, "AppImage runtime is not a little-endian ELF file" unless bytes.start_with?("\x7fELF".b) && bytes.getbyte(5) == 1
+      wide = { 1 => false, 2 => true }.fetch(bytes.getbyte(4)) { raise Error, "AppImage runtime has an unknown ELF class" }
+      offset = wide ? bytes.byteslice(0x28, 8).unpack1("Q<") : bytes.byteslice(0x20, 4).unpack1("V")
+      size, count, names = bytes.byteslice(wide ? 0x3A : 0x2E, 6).unpack("v3")
+      header = lambda do |index|
+        entry = bytes.byteslice(offset + (index * size), size)
+        raise Error, "AppImage runtime has a truncated section table" unless entry && entry.bytesize == size
+        wide ? [entry.unpack1("V"), *entry.byteslice(0x18, 16).unpack("Q<2")] : [entry.unpack1("V"), *entry.byteslice(0x10, 8).unpack("V2")]
+      end
+      _, strings, = header.call(names)
+      count.times do |index|
+        label, start, length = header.call(index)
+        found = bytes.byteslice(strings + label, name.bytesize + 1)
+        return [start, length] if found == "#{name}\0".b
+      end
+      nil
+    end
+
+    # `runtime` with `information` in its update section.
+    def self.embed(runtime, information)
+      start, length = section(runtime, UPDATE_SECTION) || raise(Error, "AppImage runtime has no #{UPDATE_SECTION} section")
+      raise Error, "update information exceeds the runtime's #{length}-byte #{UPDATE_SECTION} section" if information.bytesize >= length
+      raise Error, "AppImage runtime's #{UPDATE_SECTION} section is outside the file" if start + length > runtime.bytesize
+      runtime = runtime.b
+      runtime[start, length] = information.b + ("\0".b * (length - information.bytesize))
+      runtime
+    end
+
+    # The update information an AppImage carries, or nil when it has none.
+    def self.read_update_information(path)
+      bytes = File.binread(path)
+      start, length = section(bytes, UPDATE_SECTION)
+      return nil unless start
+      value = bytes.byteslice(start, length)[/\A[^\0]*/n]
+      value.empty? ? nil : value
+    end
+
+    def doctor(target, update: false)
       self.class.architecture(target)
-      missing = %w[mksquashfs curl].reject { |tool| available?(tool) }
-      raise Error, "install required AppImage tools: #{missing.join(', ')} (mksquashfs is in squashfs-tools)" unless missing.empty?
+      tools = %w[mksquashfs curl]
+      tools << "zsyncmake" if update
+      missing = tools.reject { |tool| available?(tool) }
+      raise Error, "install required AppImage tools: #{missing.join(', ')} (mksquashfs is in squashfs-tools, zsyncmake in zsync)" unless missing.empty?
     end
 
     def runtime(target)
@@ -46,9 +126,11 @@ module NativePackages
       path
     end
 
-    # Returns the AppImage's path and what was put at the AppDir's root.
-    def build(package, target, destination, name:, version:, epoch:)
-      doctor(target)
+    # Returns the AppImage's path, what was put at the AppDir's root, and
+    # the `.zsync` file beside it when the AppImage carries update
+    # information (nil otherwise).
+    def build(package, target, destination, name:, version:, epoch:, update: nil)
+      doctor(target, update: !update.nil?)
       output = destination / self.class.filename(name, version, target)
       Dir.mktmpdir("native-packages-appimage-") do |directory|
         appdir = Pathname.new(directory) / "AppDir"
@@ -59,14 +141,43 @@ module NativePackages
         image = Pathname.new(directory) / "filesystem.squashfs"
         run "mksquashfs", appdir, image, "-root-owned", "-noappend", "-no-xattrs", "-no-progress", "-quiet", "-comp", "zstd",
           env: { "SOURCE_DATE_EPOCH" => epoch.to_s }
+        bytes = runtime(target).binread
+        bytes = self.class.embed(bytes, update) if update
         File.open(output, "wb") do |file|
-          file.write(runtime(target).binread)
+          file.write(bytes)
           IO.copy_stream(image.to_s, file)
         end
         output.chmod(0o755)
         check(output)
-        [output, entry.merge("runtime" => RUNTIME, "libraries" => "host")]
+        details = entry.merge("runtime" => RUNTIME, "libraries" => "host")
+        return [output, details, nil] unless update
+        raise Error, "AppImage lost its update information: #{output}" unless self.class.read_update_information(output) == update
+        [output, details.merge("update_information" => update), zsync(output, epoch)]
       end
+    end
+
+    # Writes `<AppImage>.zsync` beside the AppImage, for updaters that fetch
+    # only the blocks that changed. Its URL is the AppImage's file name,
+    # relative to the `.zsync` file, so it works from wherever both are
+    # published. The AppImage's time is the build's, which zsyncmake records.
+    def zsync(path, epoch)
+      File.utime(epoch, epoch, path)
+      output = Pathname.new("#{path}.zsync")
+      run "zsyncmake", "-u", path.basename.to_s, "-o", output, path, chdir: path.dirname
+      check_zsync(output, path)
+      output
+    end
+
+    # Fails unless `zsync` describes the AppImage at `path` as it is now.
+    def check_zsync(zsync, path)
+      header = zsync.binread.split("\n\n".b, 2).first.to_s.force_encoding(Encoding::UTF_8).lines.to_h do |line|
+        key, value = line.chomp.split(": ", 2)
+        [key, value]
+      end
+      expected = { "Filename" => path.basename.to_s, "URL" => path.basename.to_s, "Length" => path.size.to_s,
+        "SHA-1" => Digest::SHA1.file(path).hexdigest }
+      wrong = expected.reject { |key, value| header[key] == value }.keys
+      raise Error, "#{zsync.basename} does not describe #{path.basename}: #{wrong.join(', ')}" unless wrong.empty?
     end
 
     def check(path)
