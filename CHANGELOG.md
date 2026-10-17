@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.10.0 (2026-10-18)
 
 - Embed AppImage update information. A target's
   `appimage.update_information` (`gh-releases-zsync|...` or `zsync|https://...`)
