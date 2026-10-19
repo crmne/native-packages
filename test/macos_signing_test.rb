@@ -6,7 +6,7 @@ require "native_packages"
 class MacosSigningTest < Minitest::Test
   class FixtureSigner < NativePackages::MacosSigning
     attr_reader :commands, :keychains
-    attr_accessor :notary_status, :fail_at
+    attr_accessor :notary_status, :fail_at, :valid_identities, :all_identities, :certificates
 
     def initialize(root, credentials)
       super
@@ -30,7 +30,11 @@ class MacosSigningTest < Minitest::Test
         @keychains = arguments.drop(arguments.index("-s") + 1).map(&:to_s) if arguments.include?("-s")
         return @keychains.map(&:dump).join("\n")
       end
-      return %Q{1) hash "#{@credentials.fetch('APPLE_SIGNING_IDENTITY')}"} if arguments.take(2) == %w[security find-identity]
+      if arguments.take(2) == %w[security find-identity]
+        return @valid_identities || %Q{1) hash "#{@credentials.fetch('APPLE_SIGNING_IDENTITY')}"} if arguments.include?("-v")
+        return @all_identities.to_s
+      end
+      return @certificates.to_s if arguments.take(2) == %w[security find-certificate]
       return JSON.generate("status" => @notary_status, "id" => "fixture-submission") if arguments.take(3) == %w[xcrun notarytool submit]
       ""
     end
@@ -78,6 +82,65 @@ class MacosSigningTest < Minitest::Test
       assert_raises(NativePackages::Error) { signer.with_identity { flunk } }
       assert_empty signer.commands
     end
+  end
+
+  def certificate(common_name, not_after: Time.now + 86_400)
+    key = OpenSSL::PKey::EC.generate("prime256v1")
+    certificate = OpenSSL::X509::Certificate.new
+    certificate.version = 2
+    certificate.serial = 1
+    certificate.subject = certificate.issuer = OpenSSL::X509::Name.new([["CN", common_name], ["OU", "TEAM123456"]])
+    certificate.public_key = key
+    certificate.not_before = not_after - 2 * 86_400
+    certificate.not_after = not_after
+    certificate.sign(key, OpenSSL::Digest.new("SHA256"))
+    certificate.to_pem
+  end
+
+  def identity_error(valid: "     0 valid identities found", all: nil, certificates: nil)
+    signer = FixtureSigner.new(@root, @credentials)
+    signer.valid_identities = valid
+    signer.all_identities = all
+    signer.certificates = certificates
+    error = assert_raises(NativePackages::Error) { signer.with_identity { flunk } }
+    refute signer.commands.any? { |cmd| cmd.take(2) == %w[xcrun notarytool] }
+    assert_equal %w[security delete-keychain], signer.commands.last.take(2)
+    [@credentials.fetch("APPLE_SIGNING_IDENTITY"), "Fixture", "TEAM123456", "hash"].each { |value| refute_includes error.message, value }
+    error.message
+  end
+
+  def test_missing_identity_explains_trust_errors_without_naming_the_certificate
+    identity = @credentials.fetch("APPLE_SIGNING_IDENTITY")
+    message = identity_error(certificates: certificate(identity),
+      all: %Q{  1) hash "#{identity}" (CSSMERR_TP_NOT_TRUSTED)\n     1 identities found})
+    assert_includes message, "imported P12 has no valid private signing identity matching APPLE_SIGNING_IDENTITY"
+    assert_includes message, "certificate named APPLE_SIGNING_IDENTITY: present; within its validity dates: yes; " \
+      "matching private key: present; trust errors: CSSMERR_TP_NOT_TRUSTED"
+  end
+
+  def test_missing_identity_reports_expiry_missing_key_and_name_mismatch
+    identity = @credentials.fetch("APPLE_SIGNING_IDENTITY")
+    message = identity_error(certificates: certificate(identity, not_after: Time.now - 86_400),
+      all: %Q{  1) hash "#{identity}" (CSSMERR_TP_CERT_EXPIRED)})
+    assert_includes message, "within its validity dates: no"
+    assert_includes message, "trust errors: CSSMERR_TP_CERT_EXPIRED"
+    message = identity_error(certificates: certificate(identity), all: "     0 identities found")
+    assert_includes message, "matching private key: absent"
+    refute_includes message, "trust errors"
+    message = identity_error(certificates: certificate("Developer ID Application: Other (TEAM123456)") + certificate("Intermediate"))
+    assert_includes message, "no imported certificate is named APPLE_SIGNING_IDENTITY; 2 imported"
+    message = identity_error(certificates: "-----BEGIN CERTIFICATE-----\nbroken\n-----END CERTIFICATE-----")
+    assert_includes message, "certificate details could not be read"
+  end
+
+  def test_validity_is_that_of_the_identitys_own_certificate
+    identity = @credentials.fetch("APPLE_SIGNING_IDENTITY")
+    expired = certificate(identity, not_after: Time.now - 86_400)
+    hash = OpenSSL::Digest::SHA1.hexdigest(OpenSSL::X509::Certificate.new(expired).to_der).upcase
+    message = identity_error(certificates: certificate(identity) + expired,
+      all: %Q{  1) #{hash} "#{identity}" (CSSMERR_TP_CERT_EXPIRED)})
+    assert_includes message, "within its validity dates: no"
+    refute_includes message, hash
   end
 
   def payload
