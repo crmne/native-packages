@@ -5,14 +5,16 @@ require "native_packages"
 
 class MacosSigningTest < Minitest::Test
   class FixtureSigner < NativePackages::MacosSigning
-    attr_reader :commands, :keychains
-    attr_accessor :notary_status, :fail_at
+    attr_reader :commands, :keychains, :pauses
+    attr_accessor :notary_status, :notary_results, :fail_at
 
     def initialize(root, credentials)
       super
       @commands = []
       @keychains = ["/Users/fixture/Library/Keychains/login keychain-db", "/Library/Keychains/System.keychain"]
       @notary_status = "Accepted"
+      @notary_results = []
+      @pauses = []
     end
 
     def available?(_name) = true
@@ -31,9 +33,16 @@ class MacosSigningTest < Minitest::Test
         return @keychains.map(&:dump).join("\n")
       end
       return %Q{1) hash "#{@credentials.fetch('APPLE_SIGNING_IDENTITY')}"} if arguments.take(2) == %w[security find-identity]
-      return JSON.generate("status" => @notary_status, "id" => "fixture-submission") if arguments.take(3) == %w[xcrun notarytool submit]
       ""
     end
+
+    # Each scripted result is [stdout, stderr, success]; then the fixed status.
+    def notarytool_submit(package)
+      @commands << ["xcrun", "notarytool", "submit", package.to_s]
+      @notary_results.shift || [JSON.generate("status" => @notary_status, "id" => "fixture-submission"), "", true]
+    end
+
+    def pause(seconds) = @pauses << seconds
   end
 
   def setup
@@ -176,6 +185,71 @@ class MacosSigningTest < Minitest::Test
       refute_includes output, "ticket is stapled and validated"
       assert_equal %w[security delete-keychain], signer.commands.last.take(2)
     end
+  end
+
+  def test_submission_that_fails_without_a_result_is_sent_again_after_a_pause
+    package = @root / "fixture.dmg"
+    package.write("fixture")
+    @signer.notary_results = [["", "", false], ["Error: HTTP status code: 500", "", false]]
+    result = nil
+    output = capture_io { @signer.with_identity { |signer| result = signer.notarize(package) } }.first
+    assert_equal "fixture-submission", result.fetch("submission_id")
+    assert_equal 3, @signer.commands.count { |cmd| cmd.take(3) == %w[xcrun notarytool submit] }
+    assert_equal [60, 60], @signer.pauses
+    assert_includes output, "notarytool submit failed without a result. Submitting again in 60 s (attempt 2 of 3)."
+    assert_includes output, "without a result: Error: HTTP status code: 500. Submitting again in 60 s (attempt 3 of 3)."
+  end
+
+  def test_repeated_submission_failures_stop_after_three_attempts_with_redacted_errors
+    leaked = "Error: #{@credentials.fetch('APPLE_APP_PASSWORD')} rejected"
+    signer = FixtureSigner.new(@root, @credentials)
+    signer.notary_results = Array.new(4) { ["", leaked, false] }
+    error = nil
+    output = capture_io do
+      error = assert_raises(NativePackages::Error) { signer.with_identity { |active| active.notarize(@root / "fixture.dmg") } }
+    end.first
+    assert_equal 3, signer.commands.count { |cmd| cmd.take(3) == %w[xcrun notarytool submit] }
+    assert_equal [60, 60], signer.pauses
+    assert_includes error.message, "no package was published after 3 attempts"
+    refute_includes error.message + output, @credentials.fetch("APPLE_APP_PASSWORD")
+    assert_includes error.message, "[REDACTED]"
+    refute signer.commands.any? { |cmd| cmd.take(2) == %w[xcrun stapler] }
+    assert_equal %w[security delete-keychain], signer.commands.last.take(2)
+  end
+
+  def test_reported_verdicts_and_invalid_results_are_not_submitted_again
+    [[JSON.generate("status" => "Invalid", "id" => "rejected-submission"), "", false, "rejected-submission"],
+     [JSON.generate("status" => "Invalid", "id" => "rejected-submission"), "", true, "rejected-submission"],
+     [JSON.generate("status" => "In Progress", "id" => "slow-submission"), "Timeout", false, "slow-submission"],
+     ["not json", "", true, "invalid result"],
+     [JSON.generate("status" => "Accepted"), "", true, "invalid result"]].each do |stdout, stderr, success, message|
+      signer = FixtureSigner.new(@root, @credentials)
+      signer.notary_results = [[stdout, stderr, success]]
+      error = nil
+      capture_io do
+        error = assert_raises(NativePackages::Error) { signer.with_identity { |active| active.notarize(@root / "fixture.dmg") } }
+      end
+      assert_includes error.message, message
+      assert_equal 1, signer.commands.count { |cmd| cmd.take(3) == %w[xcrun notarytool submit] }
+      assert_empty signer.pauses
+    end
+  end
+
+  def test_notarytool_verdict_is_read_even_when_it_exits_non_zero
+    skip "uses a POSIX shell script as xcrun" if Gem.win_platform?
+    bin = @root / "bin"
+    bin.mkpath
+    (bin / "xcrun").write("#!/bin/sh\necho '{\"status\":\"Invalid\",\"id\":\"rejected-submission\"}'\necho 'Processing complete' >&2\nexit 1\n")
+    (bin / "xcrun").chmod(0o755)
+    path = ENV.fetch("PATH")
+    ENV["PATH"] = [bin, path].join(File::PATH_SEPARATOR)
+    signer = NativePackages::MacosSigning.new(@root, @credentials)
+    output, error, success = signer.send(:notarytool_submit, @root / "fixture.dmg")
+    assert_equal({ "status" => "Invalid", "id" => "rejected-submission" }, JSON.parse(output))
+    assert_equal "Processing complete", error
+    refute success
+  ensure
+    ENV["PATH"] = path if path
   end
 
   def test_private_values_in_tool_errors_are_redacted

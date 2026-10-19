@@ -65,6 +65,11 @@ acceptance, the submission ID, and stapling. Failure or timeout prevents a
 completed build from being produced. Submissions can wait up to 30 minutes;
 Apple may continue processing a submission after a timeout.
 
+If `notarytool` fails without reporting a status, for example because Apple's
+service or the connection to it failed, the image is submitted again after 60
+seconds, up to three attempts. A status Apple reports, such as `Invalid`, is
+never submitted again.
+
 ## 3. Keep your script focused on the image
 
 Your DMG script should copy `@PAYLOAD@` with its signatures intact and create
