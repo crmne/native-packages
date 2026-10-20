@@ -164,6 +164,8 @@ Check the exact identity, export password, Team ID, and app-specific password.
 A native script must package `@PAYLOAD@` and preserve its signatures. A failure
 from Apple's service prevents a completed signed build. Use the submission
 information in the error to investigate Apple's result before retrying.
+A submission that fails without a result has already been tried three times;
+the error ends with `no package was published after 3 attempts`.
 
 ## Get help
 

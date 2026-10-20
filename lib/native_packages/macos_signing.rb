@@ -7,6 +7,8 @@ module NativePackages
     include Support
     VARIABLES = %w[APPLE_CERTIFICATE_P12 APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_TEAM_ID APPLE_APP_PASSWORD].freeze
     BUNDLES = %w[.app .framework .xpc .appex .bundle .plugin].freeze
+    NOTARY_ATTEMPTS = 3
+    NOTARY_RETRY_DELAY = 60
     attr_reader :root
 
     def initialize(root, environment = ENV)
@@ -126,19 +128,50 @@ module NativePackages
       { "signature" => "developer-id", "notarization" => "accepted", "submission_id" => response.fetch("id"), "stapled" => true }
     end
 
+    # notarytool can fail outright, with no verdict, when Apple's service or
+    # the connection to it fails. Only that is submitted again: a status
+    # notarytool reports, such as Invalid, is Apple's result for these bytes.
     def submit(package)
-      puts "Submitting #{package.basename} to Apple's notary service..."
-      response = JSON.parse(execute("xcrun", "notarytool", "submit", package,
-        "--keychain-profile", "native-packages", "--keychain", @keychain,
-        "--wait", "--timeout", "30m", "--output-format", "json"))
-      unless response["status"] == "Accepted"
-        raise Error, "Apple notarization was not accepted (submission #{response.fetch('id', 'unknown')}); inspect the notarytool log before distributing"
+      1.upto(NOTARY_ATTEMPTS) do |attempt|
+        puts "Submitting #{package.basename} to Apple's notary service..."
+        output, error, success = notarytool_submit(package)
+        response = notary_response(output)
+        if response
+          unless response["status"] == "Accepted"
+            raise Error, "Apple notarization was not accepted (submission #{response.fetch('id', 'unknown')}); inspect the notarytool log before distributing"
+          end
+          response.fetch("id")
+          return response
+        end
+        raise Error, "Apple notary service returned an invalid result; no package was published" if success
+        # Keep whatever notarytool said, which may be on either stream.
+        detail = redact(error.empty? ? output : error)
+        failure = "notarytool submit failed without a result#{": #{detail}" unless detail.empty?}"
+        raise Error, "#{failure}; no package was published after #{NOTARY_ATTEMPTS} attempts" if attempt == NOTARY_ATTEMPTS
+        puts "#{failure}. Submitting again in #{NOTARY_RETRY_DELAY} s (attempt #{attempt + 1} of #{NOTARY_ATTEMPTS})."
+        pause(NOTARY_RETRY_DELAY)
       end
-      response.fetch("id")
-      response
-    rescue JSON::ParserError, KeyError
+    rescue KeyError
       raise Error, "Apple notary service returned an invalid result; no package was published"
     end
+
+    # notarytool may print its JSON result and still exit non-zero, so the
+    # verdict is read from its output before the exit status.
+    private def notarytool_submit(package)
+      output, error, status = Open3.capture3("xcrun", "notarytool", "submit", package.to_s,
+        "--keychain-profile", "native-packages", "--keychain", @keychain.to_s,
+        "--wait", "--timeout", "30m", "--output-format", "json", chdir: root.to_s, binmode: true)
+      [output.strip, error.strip, status.success?]
+    end
+
+    private def notary_response(output)
+      response = JSON.parse(output)
+      response if response.is_a?(Hash) && response["status"].is_a?(String)
+    rescue JSON::ParserError
+      nil
+    end
+
+    private def pause(seconds) = sleep(seconds)
 
     # A portable tarball cannot itself be submitted or stapled. Apple accepts
     # the exact signed code through a temporary ZIP; the app owns the final tar.
@@ -182,9 +215,13 @@ module NativePackages
     def execute(*arguments)
       capture(*arguments)
     rescue Error => error
-      message = error.message.b
+      raise Error, redact(error.message)
+    end
+
+    private def redact(message)
+      message = message.b
       @redactions.sort_by { |value| -value.bytesize }.each { |value| message.gsub!(value.b, "[REDACTED]") }
-      raise Error, message
+      message
     end
   end
 end

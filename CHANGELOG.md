@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Submit a macOS package to Apple's notary service again, up to three
+  attempts 60 seconds apart, when `notarytool` fails without reporting a
+  status. A status Apple reports, such as `Invalid`, is not submitted again,
+  even when `notarytool` exits with an error.
+
 ## 0.10.0 (2026-10-18)
 
 - Embed AppImage update information. A target's
