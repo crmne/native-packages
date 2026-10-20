@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Explain why an imported `.p12` yields no valid Apple signing identity: the
+  error says whether a certificate with the configured name was imported,
+  whether it is within its validity dates and has its private key, and which
+  trust errors macOS reported. It names no certificate or team.
+
 ## 0.10.0 (2026-10-18)
 
 - Embed AppImage update information. A target's
