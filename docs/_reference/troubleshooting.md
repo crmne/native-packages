@@ -76,6 +76,13 @@ For DEB/RPM, add the library's distribution package names under
 dependencies explicitly. If the library is bundled, make sure it is included
 in `contents`. Confirm dependency names on your supported distributions.
 
+## A binary exceeds the glibc ceiling
+
+The named file imports the listed symbols from a glibc newer than the
+target's [`glibc_ceiling`](configuration.md#glibc-ceiling). Rebuild it
+against an older glibc, usually in the container image your other binaries
+use, or raise the ceiling if the newer requirement is intended.
+
 ## The output directory already exists
 
 Choose a new output path:

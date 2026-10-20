@@ -96,6 +96,7 @@ letters, digits, and hyphens, starting with a letter or digit.
 | `before_build` | Command arguments run before copying a local input. |
 | `after_package` | Command arguments run on each package before its hash is recorded. |
 | `native` | Required for DMG, MSI and Inno. Contains `command` and `output`. |
+| `inspection` | Optional for glibc Linux binary targets: `glibc_ceiling`, the newest glibc any binary may need. See [glibc ceiling](#glibc-ceiling). |
 | `appimage` | Optional for AppImage targets: `update_information`, embedded with a `.zsync` file beside the AppImage. See [AppImage](platforms.md#update-information). |
 
 Formats are `deb`, `rpm`, `archlinux`, `apk`, `ipk`, `appimage`, `srpm`,
@@ -282,6 +283,33 @@ libraries:
 Mappings extend the built-in DEB/RPM table. A mapping for an existing library
 replaces that library's mapping, so include both formats if needed. Verify
 package names against your supported distribution versions.
+
+### glibc ceiling
+
+A binary built against a newer glibc than intended, for example on the host
+instead of in an older container, raises the package's `libc6` or `glibc`
+requirement and will not run on older distributions. To fail the build
+instead, set the newest glibc version any packaged ELF file may need:
+
+```yaml
+targets:
+  linux-amd64:
+    libc: glibc
+    inspection:
+      glibc_ceiling: '2.35'
+```
+
+Quote the version: YAML reads `2.40` unquoted as the number `2.4`. The check
+covers every ELF file in the package, for every format of the target, and
+the error names each file that exceeds the ceiling with the imported
+symbols that need the newer glibc:
+
+```text
+glibc ceiling 2.35 exceeded:
+  /tmp/native-packages-input-abc123/payload/lib/hello-vulkan needs strlcpy@GLIBC_2.38
+```
+
+`build.json` records the ceiling beside the computed `glibc_floor`.
 
 ## Revisions and version checks
 
