@@ -86,6 +86,9 @@ native-packages inspects the files without running them. For DEB and RPM it
 adds known library dependencies and a glibc version requirement where needed.
 Declare libraries loaded at runtime and other app requirements yourself.
 
+To make sure no binary needs a newer glibc than the distributions you
+support, set a [`glibc_ceiling`](../_reference/configuration.md#glibc-ceiling).
+
 Dependency names can differ by distribution. Put format-specific lists under
 `nfpm.overrides`:
 

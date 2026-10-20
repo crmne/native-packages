@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Fail a build when a binary needs a newer glibc than the target allows.
+  Set `inspection.glibc_ceiling: '2.39'` on a glibc Linux target, and the
+  error names each ELF file above it with the symbols that need the newer
+  version. `build.json` records the ceiling.
+
 ## 0.10.0 (2026-10-18)
 
 - Embed AppImage update information. A target's

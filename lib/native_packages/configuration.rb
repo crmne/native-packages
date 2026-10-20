@@ -86,7 +86,7 @@ module NativePackages
       metadata = tokens("9.8.7", epoch: 1_767_225_600)
       targets.each do |id, target|
         raise Error, "invalid target name: #{id}" unless /\A[a-z0-9][a-z0-9-]*\z/.match?(id)
-        unknown = target.keys - %w[platform arch libc abi kind formats input nfpm before_build after_package compiler_target native appimage]
+        unknown = target.keys - %w[platform arch libc abi kind formats input nfpm before_build after_package compiler_target native appimage inspection]
         raise Error, "targets.#{id}: unknown fields #{unknown.join(', ')}" unless unknown.empty?
         formats = target.fetch("formats")
         unless formats.is_a?(Array) && !formats.empty? && formats.uniq == formats && (formats - FORMATS).empty?
@@ -133,6 +133,7 @@ module NativePackages
         rescue Error => error
           raise Error, "#{id}.#{error.message}"
         end
+        inspection(id, target, kind) if target.key?("inspection")
         raise Error, "#{id}: IPK needs an explicit abi (device/distribution baseline)" if formats.include?("ipk") && target.fetch("abi", "").empty?
         input = mapping(target.fetch("input"), "#{id}.input")
         raise Error, "#{id}.input: declare local or release_asset" unless input["local"] || input["release_asset"]
@@ -167,6 +168,18 @@ module NativePackages
       end
       project.repositories
       true
+    end
+
+    def inspection(id, target, kind)
+      inspection = mapping(target["inspection"], "#{id}.inspection")
+      unknown = inspection.keys - %w[glibc_ceiling]
+      raise Error, "#{id}.inspection: unknown fields #{unknown.join(', ')}" unless unknown.empty?
+      if inspection.key?("glibc_ceiling")
+        raise Error, "#{id}.inspection.glibc_ceiling: only for glibc Linux binary targets" unless target["platform"] == "linux" && kind == "binary" && target["libc"] == "glibc"
+        unless inspection["glibc_ceiling"].is_a?(String) && /\A\d+\.\d+\z/.match?(inspection["glibc_ceiling"])
+          raise Error, "#{id}.inspection.glibc_ceiling: use a quoted glibc version such as '2.39'"
+        end
+      end
     end
 
     # The AppImage update information for `target`, checked against the

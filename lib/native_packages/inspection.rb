@@ -73,7 +73,8 @@ module NativePackages
       raise Error, "ELF inspection does not support #{target.fetch('arch')}" unless expected
       binaries = paths.select { |path| path.binread(4) == "\x7fELF" }
       raise Error, "Linux target contains no ELF binaries" if binaries.empty?
-      required, versions, interpreters = [], [], []
+      required, versions, interpreters, newer = [], [], [], []
+      ceiling = target.fetch("inspection", {})["glibc_ceiling"]
       bundled = binaries.map { |path| path.basename.to_s }
       binaries.each do |path|
         header = path.binread(20)
@@ -82,9 +83,14 @@ module NativePackages
         dynamic = capture("readelf", "-d", path)
         required.concat(dynamic.scan(/Shared library: \[([^\]]+)\]/).flatten)
         bundled.concat(dynamic.scan(/Library soname: \[([^\]]+)\]/).flatten)
-        versions.concat(capture("readelf", "--version-info", path).scan(/GLIBC_(\d+\.\d+)/).flatten)
+        found = capture("readelf", "--version-info", path).scan(/GLIBC_(\d+\.\d+)/).flatten
+        versions.concat(found)
+        if ceiling && found.any? { |version| Gem::Version.new(version) > Gem::Version.new(ceiling) }
+          newer << "#{path} needs #{above(path, ceiling).join(', ')}"
+        end
         interpreters.concat(capture("readelf", "-l", path).scan(/Requesting program interpreter: ([^\]]+)/).flatten)
       end
+      raise Error, "glibc ceiling #{ceiling} exceeded:\n  #{newer.join("\n  ")}" unless newer.empty?
       libc = target.fetch("libc")
       if libc == "static" && (!required.empty? || !interpreters.empty?)
         raise Error, "target declares static but contains dynamic ELF binaries"
@@ -120,8 +126,21 @@ module NativePackages
       elsif !external.empty? && package.fetch("overrides", {}).fetch(format, {}).fetch("depends", package.fetch("depends", [])).empty?
         raise Error, "#{format}: declare dependencies for #{external.join(', ')}"
       end
-      { "kind" => "elf", "binaries" => binaries.length, "architecture" => target.fetch("arch"), "libc" => libc,
+      result = { "kind" => "elf", "binaries" => binaries.length, "architecture" => target.fetch("arch"), "libc" => libc,
         "required_libraries" => external.sort, "glibc_floor" => glibc, "installation" => "not-tested" }
+      result["glibc_ceiling"] = ceiling if ceiling
+      result
+    end
+
+    # The imported symbols of an ELF file that need a glibc newer than
+    # `ceiling`, such as strlcpy@GLIBC_2.38, or the version names alone
+    # when the symbol table does not say which symbols need them.
+    def above(path, ceiling)
+      newer = ->(version) { Gem::Version.new(version) > Gem::Version.new(ceiling) }
+      symbols = capture("readelf", "-W", "--dyn-syms", path).scan(/\bUND\s+(\S+@GLIBC_(\d+\.\d+))/).uniq
+        .select { |_, version| newer.call(version) }.sort_by { |name, version| version.split(".").map { |part| -part.to_i } + [name] }.map(&:first)
+      return symbols.first(5) + (symbols.length > 5 ? ["#{symbols.length - 5} more"] : []) unless symbols.empty?
+      capture("readelf", "--version-info", path).scan(/GLIBC_(\d+\.\d+)/).flatten.uniq.select(&newer).map { |version| "GLIBC_#{version}" }
     end
   end
 end
