@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Mark optional files of a Linux target under `inspection.optional`, such as
+  plugins or GPU variants. Their linked libraries become DEB and RPM
+  suggestions or recommendations, or nothing with `relation: none`, instead
+  of hard dependencies, and they no longer raise the glibc requirement. An
+  unmapped library no longer fails the build when only an optional file with
+  `relation: none` links it.
+
 ## 0.10.0 (2026-10-18)
 
 - Embed AppImage update information. A target's

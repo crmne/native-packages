@@ -86,7 +86,7 @@ module NativePackages
       metadata = tokens("9.8.7", epoch: 1_767_225_600)
       targets.each do |id, target|
         raise Error, "invalid target name: #{id}" unless /\A[a-z0-9][a-z0-9-]*\z/.match?(id)
-        unknown = target.keys - %w[platform arch libc abi kind formats input nfpm before_build after_package compiler_target native appimage]
+        unknown = target.keys - %w[platform arch libc abi kind formats input nfpm before_build after_package compiler_target native appimage inspection]
         raise Error, "targets.#{id}: unknown fields #{unknown.join(', ')}" unless unknown.empty?
         formats = target.fetch("formats")
         unless formats.is_a?(Array) && !formats.empty? && formats.uniq == formats && (formats - FORMATS).empty?
@@ -133,6 +133,7 @@ module NativePackages
         rescue Error => error
           raise Error, "#{id}.#{error.message}"
         end
+        inspection(id, target, kind) if target.key?("inspection")
         raise Error, "#{id}: IPK needs an explicit abi (device/distribution baseline)" if formats.include?("ipk") && target.fetch("abi", "").empty?
         input = mapping(target.fetch("input"), "#{id}.input")
         raise Error, "#{id}.input: declare local or release_asset" unless input["local"] || input["release_asset"]
@@ -167,6 +168,28 @@ module NativePackages
       end
       project.repositories
       true
+    end
+
+    def inspection(id, target, kind)
+      inspection = mapping(target["inspection"], "#{id}.inspection")
+      raise Error, "#{id}.inspection: only for Linux binary targets" unless target["platform"] == "linux" && kind == "binary"
+      unknown = inspection.keys - %w[optional]
+      raise Error, "#{id}.inspection: unknown fields #{unknown.join(', ')}" unless unknown.empty?
+      optional = inspection.fetch("optional", [])
+      raise Error, "#{id}.inspection.optional: expected a nonempty list" unless optional.is_a?(Array) && !optional.empty?
+      optional.each_with_index do |entry, index|
+        label = "#{id}.inspection.optional[#{index}]"
+        mapping(entry, label)
+        unknown = entry.keys - %w[paths relation]
+        raise Error, "#{label}: unknown fields #{unknown.join(', ')}" unless unknown.empty?
+        paths = entry["paths"]
+        unless paths.is_a?(Array) && !paths.empty? && paths.all? { |path| path.is_a?(String) && path.start_with?("/") }
+          raise Error, "#{label}.paths: list absolute installed paths or patterns"
+        end
+        unless Inspection::RELATIONS.include?(entry.fetch("relation", "suggests"))
+          raise Error, "#{label}.relation: use #{Inspection::RELATIONS.join(', ')}"
+        end
+      end
     end
 
     # The AppImage update information for `target`, checked against the
