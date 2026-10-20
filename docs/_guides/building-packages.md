@@ -86,6 +86,10 @@ native-packages inspects the files without running them. For DEB and RPM it
 adds known library dependencies and a glibc version requirement where needed.
 Declare libraries loaded at runtime and other app requirements yourself.
 
+If some files are optional, such as plugins or a GPU variant only some users
+can run, mark them with [`inspection.optional`](../_reference/configuration.md#optional-files)
+so their libraries become suggestions instead of requirements.
+
 Dependency names can differ by distribution. Put format-specific lists under
 `nfpm.overrides`:
 

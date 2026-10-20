@@ -96,6 +96,7 @@ letters, digits, and hyphens, starting with a letter or digit.
 | `before_build` | Command arguments run before copying a local input. |
 | `after_package` | Command arguments run on each package before its hash is recorded. |
 | `native` | Required for DMG, MSI and Inno. Contains `command` and `output`. |
+| `inspection` | Optional for Linux binary targets: `optional` files whose libraries are weak or no dependencies. See [Optional files](#optional-files). |
 | `appimage` | Optional for AppImage targets: `update_information`, embedded with a `.zsync` file beside the AppImage. See [AppImage](platforms.md#update-information). |
 
 Formats are `deb`, `rpm`, `archlinux`, `apk`, `ipk`, `appimage`, `srpm`,
@@ -282,6 +283,45 @@ libraries:
 Mappings extend the built-in DEB/RPM table. A mapping for an existing library
 replaces that library's mapping, so include both formats if needed. Verify
 package names against your supported distribution versions.
+
+### Optional files
+
+For DEB and RPM, every library an ELF file links becomes a dependency, and
+the newest glibc symbol version among them sets the `libc6` or `glibc`
+requirement. Some files are not needed for the app to run: plugins loaded
+only when present, or variants for a GPU or desktop that only some users
+have. List their installed paths under the target's `inspection.optional`:
+
+```yaml
+targets:
+  linux-amd64:
+    inspection:
+      optional:
+        - paths: ['/usr/lib/hello/cuda-*', /usr/lib/hello/hello-vulkan]
+          relation: suggests
+        - paths: ['/usr/lib/hello/plugins/**/*.so']
+          relation: none
+```
+
+| Optional field | Purpose |
+| --- | --- |
+| `paths` | Required list of absolute installed paths or glob patterns, matched against `dst`. A pattern that matches a directory covers everything under it. `*` stays within one directory and `**/` crosses directories. |
+| `relation` | `suggests` (default), `recommends`, or `none`. |
+
+The libraries these files link become DEB `Suggests` or `Recommends`, or RPM
+weak dependencies of the same name, and need a mapping as for required files.
+With `none` they add nothing and need no mapping. A library that a required
+file also links stays a hard dependency, and `recommends` outranks `suggests`.
+The first entry that matches a path decides its relation. Optional files do
+not raise the glibc requirement, but they are still installed and still
+checked for architecture and C library.
+
+Each pattern must match a file that at least one format of the package
+installs, so a renamed path fails the build instead of silently making its
+file required again. `build.json` lists the optional binaries and their weak
+libraries under `validation.optional`.
+Libraries loaded with `dlopen` are not linked and are never detected: declare
+those yourself under `nfpm.overrides`.
 
 ## Revisions and version checks
 

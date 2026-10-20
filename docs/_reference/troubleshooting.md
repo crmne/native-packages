@@ -76,6 +76,10 @@ For DEB/RPM, add the library's distribution package names under
 dependencies explicitly. If the library is bundled, make sure it is included
 in `contents`. Confirm dependency names on your supported distributions.
 
+If only an optional plugin or variant links the library, mark that file under
+[`inspection.optional`](configuration.md#optional-files) with `relation: none`
+instead, or map the library and use `relation: suggests`.
+
 ## The output directory already exists
 
 Choose a new output path:
