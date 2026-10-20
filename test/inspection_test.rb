@@ -135,7 +135,10 @@ class NativePackagesInspectionTest < Minitest::Test
   def test_optional_patterns_must_match_an_installed_file
     fixtures
     error = assert_raises(NativePackages::Error) { inspect_package([{ "paths" => ["/usr/lib/app/plugin"], "relation" => "none" }], "deb") }
-    assert_includes error.message, "inspection.optional matches no installed deb file: /usr/lib/app/plugin"
+    assert_includes error.message, "inspection.optional matches no installed file: /usr/lib/app/plugin"
+    value = package
+    value["contents"] << { "src" => "payload/plugins/libplugin.so", "dst" => "/usr/lib/app/rpm-only/", "packager" => "rpm" }
+    NativePackages::Inspection.new(root).check(value, target([{ "paths" => ["/usr/lib/app/plugins", "/usr/lib/app/rpm-only"], "relation" => "none" }]), "deb")
   end
 
   def test_optional_files_are_still_checked_for_architecture_and_libc

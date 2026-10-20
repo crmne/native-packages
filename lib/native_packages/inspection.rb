@@ -29,12 +29,17 @@ module NativePackages
     RELATIONS = %w[suggests recommends none].freeze
     GLOB = File::FNM_PATHNAME | File::FNM_EXTGLOB
 
-    # Each packaged file with the path nFPM installs it at.
-    def selected_files(package, format)
+    # Each packaged file with the path nFPM installs it at, or with no
+    # format, every file any format of the package installs.
+    def selected_files(package, format = nil)
       # nFPM overrides replace the contents list when one is supplied.
-      contents = package.fetch("overrides", {}).fetch(format, {}).fetch("contents", package.fetch("contents"))
+      contents = if format
+        package.fetch("overrides", {}).fetch(format, {}).fetch("contents", package.fetch("contents"))
+      else
+        package.fetch("contents") + package.fetch("overrides", {}).values.flat_map { |override| override.fetch("contents", []) }
+      end
       contents.flat_map do |item|
-        next [] if item["packager"] && item["packager"] != format
+        next [] if format && item["packager"] && item["packager"] != format
         next [] if %w[symlink ghost dir].include?(item["type"]) || !item["src"]
         source = File.expand_path(item.fetch("src"), root)
         paths = package["disable_globbing"] ? [Pathname.new(source)].select(&:exist?) : Dir.glob(source).sort.map { |path| Pathname.new(path) }
@@ -96,10 +101,15 @@ module NativePackages
     def elf(selected, package, target, format)
       expected = ELF_ARCHES[target.fetch("arch")]
       raise Error, "ELF inspection does not support #{target.fetch('arch')}" unless expected
-      unused = target.fetch("inspection", {}).fetch("optional", []).flat_map { |item| item.fetch("paths") }.reject do |pattern|
-        selected.any? { |_, installed| Pathname.new(installed).ascend.any? { |path| File.fnmatch?(pattern, path.to_s, GLOB) } }
+      # A pattern may name a file only some formats install.
+      patterns = target.fetch("inspection", {}).fetch("optional", []).flat_map { |item| item.fetch("paths") }
+      unless patterns.empty?
+        installed = selected_files(package).map(&:last).uniq
+        unused = patterns.reject do |pattern|
+          installed.any? { |file| Pathname.new(file).ascend.any? { |path| File.fnmatch?(pattern, path.to_s, GLOB) } }
+        end
+        raise Error, "inspection.optional matches no installed file: #{unused.join(', ')}" unless unused.empty?
       end
-      raise Error, "inspection.optional matches no installed #{format} file: #{unused.join(', ')}" unless unused.empty?
       binaries = selected.select { |path, _| path.binread(4) == "\x7fELF" }
       raise Error, "Linux target contains no ELF binaries" if binaries.empty?
       # Libraries and glibc versions by relation: nil for required files.

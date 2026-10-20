@@ -316,9 +316,10 @@ The first entry that matches a path decides its relation. Optional files do
 not raise the glibc requirement, but they are still installed and still
 checked for architecture and C library.
 
-Each pattern must match a file the package installs, so a renamed path fails
-the build instead of silently making its file required again. `build.json`
-lists the optional binaries and their weak libraries under `validation.optional`.
+Each pattern must match a file that at least one format of the package
+installs, so a renamed path fails the build instead of silently making its
+file required again. `build.json` lists the optional binaries and their weak
+libraries under `validation.optional`.
 Libraries loaded with `dlopen` are not linked and are never detected: declare
 those yourself under `nfpm.overrides`.
 
