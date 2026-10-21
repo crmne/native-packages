@@ -187,6 +187,20 @@ Validate a stable tag and, when `version_file` is configured, compare it with
 the application's Cargo manifest version. Set `version_section` for workspace
 manifests.
 
+## omarchy-recipe
+
+```sh
+native-packages omarchy-recipe ../omarchy-pkgs --release v1.2.3 [--package hello-bin]
+```
+
+Write `pkgbuilds/NAME-bin/` in an omacom/omarchy-pkgs checkout from the
+`arch/NAME-bin/` templates, rendered for that published release with
+`pkgrel=1` and the hashes from `release.checksums`. Source URLs are rewritten
+to follow `pkgver`, and `.omarchy/package.json` declares an `upstream.watch` on
+the GitHub releases, so Omarchy's bot can update the package. The command downloads only the checksum manifest.
+`--package` is required when several `-bin` templates exist. It refuses an
+existing recipe directory. See [Omarchy packages](../_guides/omarchy.md).
+
 ## Select an installed tool version
 
 If several gem versions are installed, RubyGems lets you select the one required

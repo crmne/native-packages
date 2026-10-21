@@ -1,7 +1,7 @@
 ---
 title: Building across platforms
 description: Build targets on their required hosts, combine the results, and generate distribution recipes once all packages are ready.
-nav_order: 8
+nav_order: 9
 ---
 
 # Building across platforms

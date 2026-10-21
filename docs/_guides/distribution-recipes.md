@@ -189,4 +189,6 @@ process. The CLI reports those instructions rather than submitting an update.
 Once the process is tested, enable destination publication in
 [GitHub Actions](github-actions.md#enable-aur-or-homebrew-publication).
 For package files themselves, use [Publishing a release](publishing.md).
+To ship your AUR binary recipe in Omarchy's repository as well, see
+[Omarchy packages](omarchy.md).
 This tool does not host APT or DNF package indexes.

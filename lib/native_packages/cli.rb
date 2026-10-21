@@ -3,6 +3,7 @@
 require_relative "build"
 require_relative "scaffold"
 require_relative "release_signing"
+require_relative "omarchy"
 
 module NativePackages
   module CLI
@@ -31,6 +32,8 @@ module NativePackages
         publish TARGET [--body-file FILE]          Publish a staged downstream update
         status [TARGET] [--json] [--offline]        Check downstream versions and requests
         check-version TAG                          Check the application's version
+        omarchy-recipe CHECKOUT --release TAG      Write a first Omarchy -bin recipe
+          [--package NAME]                        into an omarchy-pkgs checkout
       Legacy commands remain available:
         prepare VERSION [--output DIRECTORY]
         check DIRECTORY
@@ -70,6 +73,10 @@ module NativePackages
           flags.on("--version VERSION") { |value| options[:value] = value }
           flags.on("--dry-run") { options[:dry_run] = true }
         end
+        if command == "omarchy-recipe"
+          flags.on("--release TAG") { |value| options[:release] = value }
+          flags.on("--package NAME") { |value| options[:package] = value }
+        end
         flags.on("--finalize-recipes") { options[:finalize_recipes] = true } if command == "aggregate"
         if command == "init"
           flags.on("--interactive") { options[:interactive] = true }
@@ -93,7 +100,7 @@ module NativePackages
         "release-checksums" => 1..1, "sign-checksums" => 1..1, "verify-checksums" => 1..1,
         "prepare" => 1..1, "check" => 1..1, "artifacts" => 1..1, "publish-release" => 2..2,
         "notarize-macos" => 1..1, "repositories" => 0..0, "stage" => 2..2, "diff" => 1..1, "publish" => options[:from] ? 0..0 : 1..1,
-        "publish-aur" => 1..1, "status" => 0..1, "check-version" => 1..1, "validate" => 0..0 }[command]
+        "publish-aur" => 1..1, "status" => 0..1, "check-version" => 1..1, "validate" => 0..0, "omarchy-recipe" => 1..1 }[command]
       raise Error, HELP unless arity&.cover?(arguments.length)
       if %w[release-checksums sign-checksums verify-checksums].include?(command)
         path = Pathname.new(arguments.first).expand_path(root)
@@ -116,6 +123,11 @@ module NativePackages
       end
       path = Configuration.discover(root, config_path)
       configuration = path && Configuration.new(path)
+      if command == "omarchy-recipe"
+        raise Error, "create native-packages.yaml with init" unless configuration
+        raise Error, "omarchy-recipe requires --release" unless options[:release]
+        return Omarchy.new(configuration).recipe(Pathname.new(arguments.first).expand_path(root), **options.slice(:release, :package))
+      end
       if %w[build doctor aggregate].include?(command) || options[:from]
         raise Error, "create native-packages.yaml with init, or convert existing packaging with migrate" unless configuration
         builder = Build.new(configuration)

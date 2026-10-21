@@ -69,6 +69,7 @@ Start with [getting started](docs/_guides/getting-started.md).
 - [Apple signing and notarization](docs/_guides/apple-notarization.md) — prepare macOS downloads for distribution.
 - [Release signatures and attestations](docs/_guides/release-signing.md): authorize updater downloads and identify their build workflow.
 - [AUR, Homebrew, and other repositories](docs/_guides/distribution-recipes.md) — generate and publish recipes.
+- [Omarchy packages](docs/_guides/omarchy.md): write a first Omarchy recipe that Omarchy's bot then keeps updated.
 
 For a particular option or error, see the [configuration reference](docs/_reference/configuration.md),
 [command reference](docs/_reference/commands.md), and [troubleshooting guide](docs/_reference/troubleshooting.md).

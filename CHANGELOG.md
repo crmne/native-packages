@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Add `omarchy-recipe`, which writes a first Omarchy package
+  (`pkgbuilds/NAME-bin/` in an omacom/omarchy-pkgs checkout) from the app's
+  AUR `-bin` templates for a published release. Its `.omarchy/package.json`
+  declares an `upstream.watch` on the GitHub releases, so Omarchy's bot opens
+  and merges every later update. Source URLs are rewritten
+  to follow `pkgver`, and the command checks that they do.
+
 ## 0.10.0 (2026-10-18)
 
 - Embed AppImage update information. A target's
