@@ -52,7 +52,7 @@ record. Local builds work without a GitHub release or credentials.
 | --- | --- |
 | Linux | DEB, RPM, AppImage, Arch Linux packages, Alpine APK, IPK, and source RPM |
 | macOS | DMG, using your packaging script; optional Apple signing and notarization |
-| Windows | MSIX, or MSI and Inno Setup installers using your packaging script |
+| Windows | MSIX, or MSI and Inno Setup installers using your packaging script; optional Azure Artifact Signing |
 
 Each target needs files built for that platform. DMG builds run on macOS;
 MSI and Inno builds run on Windows. See [supported platforms](docs/_reference/platforms.md)
@@ -67,6 +67,7 @@ Start with [getting started](docs/_guides/getting-started.md).
 - [GitHub Actions](docs/_guides/github-actions.md) — add packaging to your release workflow.
 - [macOS and Windows installers](docs/_guides/native-recipes.md) — connect your native packaging scripts.
 - [Apple signing and notarization](docs/_guides/apple-notarization.md) — prepare macOS downloads for distribution.
+- [Windows code signing](docs/_guides/windows-signing.md): sign Windows executables and installers with Azure Artifact Signing.
 - [Release signatures and attestations](docs/_guides/release-signing.md): authorize updater downloads and identify their build workflow.
 - [AUR, Homebrew, and other repositories](docs/_guides/distribution-recipes.md) — generate and publish recipes.
 - [Omarchy packages](docs/_guides/omarchy.md): write a first Omarchy recipe that Omarchy's bot then keeps updated.

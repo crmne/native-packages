@@ -17,6 +17,7 @@ module NativePackages
           [--output DIRECTORY] [--dry-run]         Choose output or inspect the plan
           [--defer-recipes]                        Build targets without recipe assets/tools
         notarize-macos DIRECTORY --output DIRECTORY Copy, sign and notarize portable Mac code
+        sign-windows FILE...                       Sign Windows files in place (Azure Artifact Signing)
         release-checksums DIRECTORY --output FILE  Hash a flat directory of release artifacts
         sign-checksums FILE --public-key HEX_FILE   Sign verified checksums with Ed25519
           [--key-env VARIABLE]                    Default: NATIVE_PACKAGES_SIGNING_KEY
@@ -99,7 +100,7 @@ module NativePackages
       arity = { "init" => 0..0, "migrate" => 0..0, "build" => 0..0, "doctor" => 0..0, "aggregate" => 1..,
         "release-checksums" => 1..1, "sign-checksums" => 1..1, "verify-checksums" => 1..1,
         "prepare" => 1..1, "check" => 1..1, "artifacts" => 1..1, "publish-release" => 2..2,
-        "notarize-macos" => 1..1, "repositories" => 0..0, "stage" => 2..2, "diff" => 1..1, "publish" => options[:from] ? 0..0 : 1..1,
+        "notarize-macos" => 1..1, "sign-windows" => 1.., "repositories" => 0..0, "stage" => 2..2, "diff" => 1..1, "publish" => options[:from] ? 0..0 : 1..1,
         "publish-aur" => 1..1, "status" => 0..1, "check-version" => 1..1, "validate" => 0..0, "omarchy-recipe" => 1..1 }[command]
       raise Error, HELP unless arity&.cover?(arguments.length)
       if %w[release-checksums sign-checksums verify-checksums].include?(command)
@@ -123,6 +124,10 @@ module NativePackages
       end
       path = Configuration.discover(root, config_path)
       configuration = path && Configuration.new(path)
+      if command == "sign-windows"
+        raise Error, "create native-packages.yaml with windows.signing to sign Windows files" unless configuration
+        return WindowsSigning.new(configuration).sign_files(arguments.map { |file| Pathname.new(file).expand_path(root) })
+      end
       if command == "omarchy-recipe"
         raise Error, "create native-packages.yaml with init" unless configuration
         raise Error, "omarchy-recipe requires --release" unless options[:release]

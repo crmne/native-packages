@@ -102,6 +102,8 @@ It requires every format declared for those targets. An empty selection
 means all configured targets.
 
 Build DMG, MSI and Inno targets in your own macOS and Windows jobs with the CLI.
+Those jobs can [sign and notarize for Apple](apple-notarization.md) and
+[sign for Windows](windows-signing.md).
 See [Building across platforms](multi-platform.md) for combining their outputs
 and generating recipes after all packages are available.
 

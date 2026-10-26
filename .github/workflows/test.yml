@@ -136,6 +136,8 @@ jobs:
       - name: Build, install, upgrade, roll back and remove MSI fixtures
         shell: pwsh
         run: ./test/native_windows_acceptance.ps1 -Format msi
+      - name: Fetch the pinned Windows signing tools and read real signatures
+        run: ruby -Ilib test/windows_signing_tools.rb
 
   macos-install:
     runs-on: macos-latest

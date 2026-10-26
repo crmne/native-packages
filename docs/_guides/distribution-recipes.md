@@ -1,7 +1,7 @@
 ---
 title: Distribution recipes
 description: Generate AUR and Homebrew recipes with release checksums, review downstream changes, and publish repository updates.
-nav_order: 7
+nav_order: 8
 ---
 
 # Distribution recipes

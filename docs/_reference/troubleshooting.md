@@ -165,6 +165,26 @@ A native script must package `@PAYLOAD@` and preserve its signatures. A failure
 from Apple's service prevents a completed signed build. Use the submission
 information in the error to investigate Apple's result before retrying.
 
+## Windows signing fails or is skipped
+
+Signing needs the configuration's `windows.signing` section and all three of
+`AZURE_SIGNING_ENDPOINT`, `AZURE_SIGNING_ACCOUNT` and `AZURE_SIGNING_PROFILE`.
+None means an unsigned build; an incomplete set fails. `native-packages doctor`
+checks them and the Azure CLI sign-in.
+
+- `AADSTS700213: No matching federated identity record found` from
+  `azure/login`: the federated credential's subject differs from the token's.
+  Repositories that present GitHub's immutable subject need
+  `repo:OWNER@OWNER_ID/REPOSITORY@REPOSITORY_ID:environment:NAME`; see
+  [Windows code signing](../_guides/windows-signing.md#2-trust-your-github-workflow-with-the-right-subject).
+- `403 Forbidden` from SignTool: the endpoint's region differs from the
+  account's, the account or profile name is wrong, or the identity lacks the
+  Artifact Signing Certificate Profile Signer role.
+- A publisher mismatch: the certificate profile is not the one
+  `windows.signing.publisher` names.
+- A pinned SHA-256 mismatch: nuget.org served a different SignTool or client
+  package. The download is deleted; do not override the hash.
+
 ## Get help
 
 If the error persists, [open an issue](https://github.com/crmne/native-packages/issues)

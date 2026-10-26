@@ -23,8 +23,8 @@ libraries.
 | `srpm` | Linux source target | RPM spec and source files. | nFPM; native RPM tooling for rebuild tests. |
 | `msix` | Windows | Windows binaries, identity, application assets, and capabilities. | nFPM; Windows tools for signing and installation tests. |
 | `dmg` | macOS | Complete app and a DMG script. | macOS, `lipo`, and your script's tools, such as `hdiutil`. |
-| `msi` | Windows | Complete app and a Windows Installer recipe/wrapper, such as a WiX project. | Windows and your installed MSI toolset, such as WiX. |
-| `inno` | Windows | Complete app and an Inno Setup recipe/wrapper. | Windows and your installed Inno compiler. |
+| `msi` | Windows | Complete app and a Windows Installer recipe/wrapper, such as a WiX project. | Windows and your installed MSI toolset, such as WiX; optional Azure Artifact Signing. |
+| `inno` | Windows | Complete app and an Inno Setup recipe/wrapper. | Windows and your installed Inno compiler; optional Azure Artifact Signing. |
 
 The supported nFPM version is **2.47.0**. It writes package files from your
 prepared contents. Native DMG, MSI and Inno targets call your scripts instead.
@@ -149,7 +149,8 @@ target with a local directory input. macOS inspection supports `amd64`,
 
 Follow [macOS and Windows installers](../_guides/native-recipes.md) for setup.
 DMG targets can automatically [sign and notarize](../_guides/apple-notarization.md)
-when complete Apple credentials are available.
+when complete Apple credentials are available. MSI and Inno targets can sign
+their code and installer with [Azure Artifact Signing](../_guides/windows-signing.md).
 
 ## Distribution recipes
 

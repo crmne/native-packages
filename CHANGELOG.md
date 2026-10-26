@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Sign Windows code with Azure Artifact Signing. A `windows.signing` section
+  (`provider: azure-artifact-signing`) and the account's
+  `AZURE_SIGNING_ENDPOINT`, `AZURE_SIGNING_ACCOUNT` and `AZURE_SIGNING_PROFILE`
+  make MSI and Inno builds sign the input's unsigned executables and
+  libraries before the installer recipe runs, then the installer, before its
+  hash is recorded. The new `sign-windows FILE...` signs files built outside
+  native-packages. Signatures use SHA-256 and Microsoft's RFC 3161 timestamp
+  and are checked afterwards, including an optional expected `publisher`.
+  Authentication comes only from the Azure CLI (`az login`, or `azure/login`
+  with OIDC in GitHub Actions), and SignTool and the Artifact Signing client
+  are downloaded from nuget.org at pinned versions and SHA-256 hashes.
+
 - Add `omarchy-recipe`, which writes a first Omarchy package
   (`pkgbuilds/NAME-bin/` in an omacom/omarchy-pkgs checkout) from the app's
   AUR `-bin` templates for a published release. Its `.omarchy/package.json`
