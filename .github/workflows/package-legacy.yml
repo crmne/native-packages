@@ -56,14 +56,14 @@ jobs:
         run: |
           bundle exec native-packages prepare "$VERSION" --output dist/packaging
           bundle exec native-packages artifacts dist/packaging
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: inputs.version != ''
         with:
           name: packaging
           path: dist/packaging/
           include-hidden-files: true
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: inputs.version != ''
         with:
           name: package-assets
@@ -82,7 +82,7 @@ jobs:
         with:
           ruby-version: '4.0'
           bundler-cache: true
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: package-assets
           path: dist/package-assets
@@ -105,7 +105,7 @@ jobs:
         with:
           ruby-version: '4.0'
           bundler-cache: true
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: packaging
           path: dist/packaging
@@ -142,7 +142,7 @@ jobs:
         with:
           ruby-version: '4.0'
           bundler-cache: true
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: packaging
           path: dist/packaging

@@ -126,7 +126,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libarchive-tools binutils xz-utils squashfs-tools zsync
           go install "github.com/goreleaser/nfpm/v2/cmd/nfpm@v$NFPM_VERSION"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         if: inputs.version != '' && inputs.source-artifact != ''
         with:
           name: ${{ inputs.source-artifact }}
@@ -149,7 +149,7 @@ jobs:
             [[ -z "$target" ]] || target_args+=(--target "$target")
           done
           native-packages --config "$CONFIG" build --version "$VERSION" --output dist/native-packages "${target_args[@]}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: inputs.version != ''
         with:
           name: native-packages

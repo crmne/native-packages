@@ -85,7 +85,7 @@ jobs:
           bundle exec ruby -Ilib exe/native-packages --version
           gem build native-packages.gemspec
           ruby test/gem_install.rb native-packages-0.11.0.gem
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: gem-ruby-${{ matrix.ruby }}
           path: '*.gem'
