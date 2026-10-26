@@ -4,6 +4,7 @@ require_relative "configuration"
 require_relative "inspection"
 require_relative "native_recipe"
 require_relative "macos_signing"
+require_relative "windows_signing"
 require_relative "appimage"
 
 module NativePackages
@@ -41,6 +42,7 @@ module NativePackages
         metadata = configuration.target_tokens(configuration.tokens("9.8.7"), id, target, "/payload").merge("PACKAGE" => "/output/package", "FORMAT" => target.fetch("formats").first)
         NativeRecipe.new(root).doctor(target, render_tree(target.fetch("native").fetch("command"), metadata))
         MacosSigning.new(root).doctor if target["platform"] == "macos"
+        WindowsSigning.new(configuration).doctor if target["platform"] == "windows"
       end
       required = []
       required << "readelf" if selected.values.any? { |target| target["platform"] == "linux" && target.fetch("kind", "binary") == "binary" }
@@ -95,8 +97,13 @@ module NativePackages
       end
       output = Pathname.new(output || root / "dist/packages" / number).expand_path(root)
       if dry_run
-        puts JSON.pretty_generate("version" => number, "mode" => release ? "release" : "local", "output" => output.to_s,
-          "recipes" => defer_recipes ? "deferred" : "included", "targets" => selected.transform_values { |target| target.slice("formats", "platform", "arch", "input", "before_build", "after_package", "native") })
+        plan = { "version" => number, "mode" => release ? "release" : "local", "output" => output.to_s,
+          "recipes" => defer_recipes ? "deferred" : "included", "targets" => selected.transform_values { |target| target.slice("formats", "platform", "arch", "input", "before_build", "after_package", "native") } }
+        windows = WindowsSigning.new(configuration)
+        if windows.configured? && selected.values.any? { |target| target["platform"] == "windows" && target["native"] }
+          plan["windows_signing"] = { "provider" => WindowsSigning::PROVIDER, "state" => windows.state }
+        end
+        puts JSON.pretty_generate(plan)
         return
       end
       raise Error, "output exists: #{output}; choose a fresh --output" if output.exist?
@@ -142,7 +149,11 @@ module NativePackages
             else
               copy_input(source, payload, input.fetch("kind", "archive"))
             end
-            signer = target["platform"] == "macos" ? MacosSigning.new(root) : nil
+            signer = if target["platform"] == "macos"
+              MacosSigning.new(root)
+            elsif target["platform"] == "windows" && native
+              WindowsSigning.new(configuration)
+            end
             with_signing(signer) do |signing|
               signing.sign_payload(payload) if signing
               payload_digest = native && native.digest(payload)
@@ -195,7 +206,12 @@ module NativePackages
                   native.check_output(packages.first, format)
                   raise Error, "native recipes/signing must not change their input payload" unless native.digest(payload) == payload_digest
                 end
-                inspection["apple"] = signing.notarize(packages.first) if signing
+                if signing.is_a?(MacosSigning)
+                  inspection["apple"] = signing.notarize(packages.first)
+                elsif signing
+                  inspection["windows_signature"] = signing.sign_package(packages.first)
+                  native.check_output(packages.first, format)
+                end
                 record = { "target" => id, "format" => format, "path" => packages.first.relative_path_from(staging).to_s,
                   "sha256" => sha256(packages.first), "validation" => inspection }
                 record["zsync"] = zsync.relative_path_from(staging).to_s if format == "appimage" && zsync

@@ -1,7 +1,7 @@
 ---
 title: Prereleases
 description: Build and publish alpha, beta, and release candidate packages with explicit version rules.
-nav_order: 10
+nav_order: 11
 ---
 
 # Prereleases

@@ -1,7 +1,7 @@
 ---
 title: Release signatures and attestations
 description: Share release signing machinery while keeping application keys, approval policy and build identity separate.
-nav_order: 11
+nav_order: 12
 ---
 
 # Release signatures and attestations

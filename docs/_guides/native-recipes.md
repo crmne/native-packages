@@ -213,7 +213,11 @@ For DMG targets, providing complete Apple credentials enables automatic input
 signing and DMG notarization. Follow [Apple signing and notarization](apple-notarization.md).
 The DMG script must preserve the signed app when copying it into the image.
 
-For Windows, use an `after_package` hook to sign the output:
+For MSI and Inno targets, a `windows.signing` section and Azure Artifact
+Signing settings enable automatic signing of the input's code and of the
+installer. Follow [Windows code signing](windows-signing.md).
+
+To sign with another tool, use an `after_package` hook:
 
 ```yaml
 after_package: [pwsh, -File, packaging/sign.ps1, '@PACKAGE@']

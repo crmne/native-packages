@@ -149,6 +149,20 @@ sign and notarize the copy. `--output` is required, must be new, and must be
 outside the input. This command needs no project configuration. See
 [Apple signing and notarization](../_guides/apple-notarization.md).
 
+## sign-windows
+
+```sh
+native-packages sign-windows target/x86_64-pc-windows-msvc/release/hello.exe dist/hello-setup.exe
+```
+
+Sign files in place with Azure Artifact Signing, with SHA-256 and an RFC 3161
+timestamp, then check every signature. It needs the configuration's
+`windows.signing` section, `AZURE_SIGNING_ENDPOINT`, `AZURE_SIGNING_ACCOUNT`,
+`AZURE_SIGNING_PROFILE`, and an Azure CLI sign-in, and runs on x64 Windows.
+Use it for files built outside native-packages; MSI and Inno targets sign
+their installers during `build`. See
+[Windows code signing](../_guides/windows-signing.md).
+
 ## Release checksums and signatures
 
 ```sh

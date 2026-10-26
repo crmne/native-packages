@@ -40,6 +40,7 @@ expressions. Use the replacement values listed below.
 | `revisions` | Package revision numbers by app version and recipe path. |
 | `version_file` | Cargo manifest checked by `check-version`. |
 | `version_section` | Cargo section to check; defaults to `package`. |
+| `windows` | Optional. `windows.signing` turns on [Windows code signing](#windows-signing). |
 
 Quote tool versions so they remain strings. A version mismatch reports the
 command needed to install and select the configured gem.
@@ -153,6 +154,31 @@ The output hook must preserve the package's filename and file set.
 For DMGs, automatic Apple input signing finishes before the native command.
 DMG signing and notarization run after `after_package`, before the final hash.
 See [Apple signing and notarization](../_guides/apple-notarization.md).
+
+## Windows signing
+
+```yaml
+windows:
+  signing:
+    provider: azure-artifact-signing
+    description: Hello
+    description_url: https://example.org/hello
+    publisher: Example Ltd
+```
+
+| Field | Purpose |
+| --- | --- |
+| `provider` | Required. `azure-artifact-signing`. |
+| `description` | Program name shown in Windows' permission prompts. Defaults to the package name. |
+| `description_url` | An `https://` URL in the signature. Defaults to `nfpm.homepage`. |
+| `publisher` | Optional. The organization every signature must name, checked after signing. |
+
+The account comes from the environment, never the file:
+`AZURE_SIGNING_ENDPOINT`, `AZURE_SIGNING_ACCOUNT` and `AZURE_SIGNING_PROFILE`.
+With none set, builds are unsigned; an incomplete set fails. With all three,
+MSI and Inno builds sign the input's unsigned code before the native command,
+and the installer after `after_package`, before the final hash. See
+[Windows code signing](../_guides/windows-signing.md).
 
 ## Replacement values
 

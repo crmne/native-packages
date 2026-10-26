@@ -2,6 +2,7 @@
 
 require_relative "project"
 require_relative "appimage"
+require_relative "windows_signing"
 
 module NativePackages
   class Configuration
@@ -10,7 +11,7 @@ module NativePackages
     FORMATS = (%w[deb rpm archlinux apk ipk msix srpm appimage] + NATIVE_FORMATS).freeze
     NFPM_VERSION = "2.47.0"
     NAMES = %w[native-packages.yaml native-packages.yml].freeze
-    KEYS = %w[schema tool nfpm targets release assets templates repositories revisions libraries version_file version_section].freeze
+    KEYS = %w[schema tool nfpm targets release assets templates repositories revisions libraries version_file version_section windows].freeze
     attr_reader :root, :path, :data
 
     def self.discover(root, explicit = nil)
@@ -165,6 +166,7 @@ module NativePackages
         relative_path(render(destination, metadata))
         render((root / relative_path(source)).binread, metadata)
       end
+      WindowsSigning.validate(data)
       project.repositories
       true
     end

@@ -1,7 +1,7 @@
 ---
 title: Omarchy packages
 description: Turn your AUR binary recipe into an Omarchy package that Omarchy's bot updates after every GitHub release.
-nav_order: 8
+nav_order: 9
 ---
 
 # Omarchy packages
