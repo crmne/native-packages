@@ -22,7 +22,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: ruby/setup-ruby@v1
@@ -41,7 +41,7 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - name: Make a synthetic artifact
@@ -61,7 +61,7 @@ jobs:
       matrix:
         ruby: ['3.4', '4.0']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: ruby/setup-ruby@v1
@@ -94,7 +94,7 @@ jobs:
   linux-install:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: ruby/setup-ruby@v1
@@ -115,7 +115,7 @@ jobs:
   windows-install:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: ruby/setup-ruby@v1
@@ -142,7 +142,7 @@ jobs:
   macos-install:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: ruby/setup-ruby@v1
