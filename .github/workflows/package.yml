@@ -46,7 +46,7 @@ jobs:
       nfpm-version: ${{ steps.read.outputs.nfpm-version }}
       targets: ${{ steps.read.outputs.targets }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '4.0'
@@ -105,7 +105,7 @@ jobs:
       VERSION: ${{ inputs.version }}
       TARGETS: ${{ needs.configuration.outputs.targets }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: ruby/setup-ruby@v1
