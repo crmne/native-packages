@@ -265,9 +265,13 @@ module NativePackages
       output.strip
     end
 
+    # Windows PowerShell started from PowerShell 7 inherits a module path
+    # where its own Microsoft.PowerShell.Security cannot load; without one, it
+    # uses its default.
     def powershell(script, env)
       encoded = [script.encode(Encoding::UTF_16LE)].pack("m0")
-      execute("powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded, env: env)
+      execute("powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded,
+        env: env.merge("PSModulePath" => nil))
     end
 
     def execute(*arguments, env: {})
