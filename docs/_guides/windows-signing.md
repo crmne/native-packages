@@ -153,6 +153,7 @@ jobs:
       - run: gem install native-packages --version 0.11.0 --no-document
       - run: cargo build --locked --release --target x86_64-pc-windows-msvc
       - name: Sign in to Azure for code signing
+        if: vars.AZURE_SIGNING_PROFILE != ''
         uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
@@ -160,7 +161,8 @@ jobs:
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       # Sign before anything packs the executable, so the ZIP, the setup
       # program and the MSI all carry a signed copy.
-      - run: native-packages sign-windows target/x86_64-pc-windows-msvc/release/hello.exe
+      - if: vars.AZURE_SIGNING_PROFILE != ''
+        run: native-packages sign-windows target/x86_64-pc-windows-msvc/release/hello.exe
       # ... build the portable ZIP and copy the app into the MSI input ...
       - run: native-packages build --version 1.2.3 --target windows-amd64 --output dist/windows-packages
 ```
@@ -173,8 +175,10 @@ it compiles itself, with `sign-windows` before attesting and uploading it:
 native-packages sign-windows dist/hello-v1.2.3-setup.exe
 ```
 
-Release workflows often run on more than tags. To keep other runs unsigned,
-enter the environment only on tag pushes:
+The `if:` conditions skip the sign-in and `sign-windows` outside the
+environment, where its variables are empty; `build` then leaves the installer
+unsigned. Release workflows often run on more than tags. To keep other runs
+unsigned, enter the environment only on tag pushes:
 
 ```yaml
 environment: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && 'windows-signing' || '' }}

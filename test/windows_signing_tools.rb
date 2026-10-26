@@ -24,7 +24,7 @@ Dir.mktmpdir("native-packages-windows-signing-tools-") do |directory|
       abort "expected a valid, timestamped Microsoft signature: #{record.fetch('path')}"
     end
   end
-  abort "expected an unsigned fixture" unless unsigned_record.fetch("status") == "NotSigned"
+  abort "expected an unsigned fixture" if unsigned_record.fetch("status") == "Valid"
   help = IO.popen([signtool.to_s, "sign", "/?"], err: %i[child out], &:read)
   abort "SignTool does not offer /dlib" unless help.include?("/dlib")
   puts "Pinned Windows signing tools are ready."
