@@ -115,7 +115,7 @@ jobs:
         run: gem install native-packages --version "$GEM_VERSION" --no-document
       - name: Validate configuration
         run: native-packages --config "$CONFIG" validate
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         if: inputs.version != ''
         with:
           go-version: '1.26.4'
