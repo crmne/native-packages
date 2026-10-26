@@ -31,7 +31,10 @@ module NativePackages
       $ErrorActionPreference = 'Stop'
       $simple = [System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName
       $paths = @(Get-Content -LiteralPath $env:NATIVE_PACKAGES_SIGNATURE_LIST -Encoding UTF8)
-      $result = @(foreach ($path in $paths) {
+      $result = @(foreach ($line in $paths) {
+        # Plain strings: lines from Get-Content carry note properties that
+        # ConvertTo-Json would otherwise write out as an object.
+        $path = [string]$line
         $signature = Get-AuthenticodeSignature -LiteralPath $path
         $certificate = $signature.SignerCertificate
         $publisher = $null
