@@ -90,7 +90,9 @@ else
       FileUtils.cp_r(input, File.join(stage, 'NativeFixture.app'), preserve: true)
       File.symlink('/Applications', File.join(stage, 'Applications'))
       abort 'DMG creation failed' unless system('hdiutil', 'create', '-volname', 'NativeFixture', '-srcfolder', stage, '-format', 'UDZO', output)
-      abort 'DMG verification failed' unless system('hdiutil', 'verify', output)
+      # A fresh image can be briefly busy ("Resource temporarily unavailable").
+      verified = 5.times.any? { |attempt| sleep(2 * attempt); system('hdiutil', 'verify', output) }
+      abort 'DMG verification failed' unless verified
     end
   RUBY
 end

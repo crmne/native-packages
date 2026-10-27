@@ -6,7 +6,7 @@ require "native_packages"
 class MacosSigningTest < Minitest::Test
   class FixtureSigner < NativePackages::MacosSigning
     attr_reader :commands, :keychains
-    attr_accessor :notary_status, :fail_at
+    attr_accessor :notary_status, :fail_at, :busy_verifies
 
     def initialize(root, credentials)
       super
@@ -16,11 +16,16 @@ class MacosSigningTest < Minitest::Test
     end
 
     def available?(_name) = true
+    def verify_delay = 0
     def signing_lock_path = @root / "macos-signing.lock"
 
     def execute(*arguments)
       @commands << arguments.map(&:to_s)
       raise NativePackages::Error, "fixture failure" if @fail_at && arguments.take(@fail_at.length) == @fail_at
+      if arguments.take(2) == %w[hdiutil verify] && @busy_verifies.to_i.positive?
+        @busy_verifies -= 1
+        raise NativePackages::Error, "hdiutil failed: hdiutil: verify failed - Resource temporarily unavailable"
+      end
       File.write(arguments.last, "keychain") if arguments.take(2) == %w[security create-keychain]
       if arguments.take(2) == %w[security delete-keychain]
         File.delete(arguments.last)
@@ -163,6 +168,26 @@ class MacosSigningTest < Minitest::Test
     assert_operator phases.index(%w[xcrun notarytool submit]), :<, phases.index(%w[xcrun stapler staple])
     assert_operator phases.index(%w[xcrun stapler staple]), :<, phases.index(%w[xcrun stapler validate])
     assert_equal %w[security delete-keychain], @signer.commands.last.take(2)
+  end
+
+  def test_a_briefly_busy_image_is_verified_again
+    package = @root / "fixture.dmg"
+    package.write("fixture")
+    @signer.busy_verifies = 2
+    result = nil
+    capture_io { @signer.with_identity { |signer| result = signer.notarize(package) } }
+    assert_equal "accepted", result.fetch("notarization")
+    assert_equal 4, @signer.commands.count { |cmd| cmd.take(2) == %w[hdiutil verify] }
+  end
+
+  def test_an_image_that_stays_busy_still_fails
+    package = @root / "fixture.dmg"
+    package.write("fixture")
+    @signer.busy_verifies = 5
+    capture_io do
+      assert_raises(NativePackages::Error) { @signer.with_identity { |signer| signer.notarize(package) } }
+    end
+    assert_equal 5, @signer.commands.count { |cmd| cmd.take(2) == %w[hdiutil verify] }
   end
 
   def test_rejection_and_stapling_failure_do_not_report_success_and_clean_credentials

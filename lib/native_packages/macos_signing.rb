@@ -114,14 +114,14 @@ module NativePackages
     end
 
     def notarize(package)
-      execute "hdiutil", "verify", package
+      verify_image(package)
       execute "codesign", "--force", "--timestamp", "--keychain", @keychain,
         "--sign", @credentials.fetch("APPLE_SIGNING_IDENTITY"), package
       execute "codesign", "--verify", "--strict", package
       response = submit(package)
       execute "xcrun", "stapler", "staple", package
       execute "xcrun", "stapler", "validate", package
-      execute "hdiutil", "verify", package
+      verify_image(package)
       puts "Apple accepted #{package.basename}; its notarization ticket is stapled and validated."
       { "signature" => "developer-id", "notarization" => "accepted", "submission_id" => response.fetch("id"), "stapled" => true }
     end
@@ -178,6 +178,24 @@ module NativePackages
       end
       output
     end
+
+    # hdiutil can still hold a freshly written image for a moment and refuse
+    # to verify it with "Resource temporarily unavailable"; that is no fault
+    # of the image, so it gets a few more tries.
+    def verify_image(package)
+      attempts = 0
+      begin
+        execute "hdiutil", "verify", package
+      rescue Error => error
+        attempts += 1
+        raise unless error.message.include?("Resource temporarily unavailable") && attempts < 5
+
+        sleep verify_delay * attempts
+        retry
+      end
+    end
+
+    def verify_delay = 2
 
     def execute(*arguments)
       capture(*arguments)
