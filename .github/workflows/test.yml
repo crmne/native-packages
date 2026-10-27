@@ -27,7 +27,7 @@ jobs:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.4'
+          ruby-version: '4.0'
           bundler-cache: true
       - name: Test signatures and composite action with disposable keys
         run: bundle exec ruby -Ilib test/release_signing_test.rb
@@ -120,7 +120,7 @@ jobs:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.4'
+          ruby-version: '4.0'
       - uses: actions/setup-go@v7
         with:
           go-version: '1.27.3'
