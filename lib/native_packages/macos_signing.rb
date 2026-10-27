@@ -77,7 +77,7 @@ module NativePackages
           execute "security", "set-key-partition-list", "-S", "apple-tool:,apple:,codesign:", "-k", password, @keychain
           identities = execute "security", "find-identity", "-v", "-p", "codesigning", @keychain
           unless identities.include?(%Q{"#{@credentials.fetch("APPLE_SIGNING_IDENTITY")}"})
-            raise Error, "imported P12 has no valid private signing identity matching APPLE_SIGNING_IDENTITY"
+            raise Error, "imported P12 has no valid private signing identity matching APPLE_SIGNING_IDENTITY (#{identity_diagnosis})"
           end
           execute "xcrun", "notarytool", "store-credentials", "native-packages", "--keychain", @keychain,
             "--apple-id", @credentials.fetch("APPLE_ID"), "--team-id", @credentials.fetch("APPLE_TEAM_ID"),
@@ -90,6 +90,44 @@ module NativePackages
           @keychain = nil
         end
       end
+    end
+
+    # Explain why find-identity -v rejected the identity. CI logs are often
+    # public, so report only facts, never names, hashes or tool output.
+    private def identity_diagnosis
+      identity = @credentials.fetch("APPLE_SIGNING_IDENTITY")
+      pem = execute("security", "find-certificate", "-a", "-p", @keychain)
+      certificates = pem.scan(/-----BEGIN CERTIFICATE-----.+?-----END CERTIFICATE-----/m).map { |block| OpenSSL::X509::Certificate.new(block) }
+      named = certificates.select { |certificate| certificate.subject.to_a.any? { |key, value, _| key == "CN" && value == identity } }
+      return "no imported certificate is named APPLE_SIGNING_IDENTITY; #{certificates.length} imported" if named.empty?
+      # Without -v, find-identity also lists identities macOS does not trust.
+      # The code-signing policy can skip a certificate it does not match, so
+      # the basic policy decides whether the private key is present.
+      signing = identity_line("codesigning", identity)
+      line = identity_line("basic", identity) || signing
+      # A P12 can hold an expired and a renewed certificate of the same name;
+      # judge the one the identity uses, by the SHA-1 find-identity reports,
+      # preferring the code-signing result so validity and trust agree.
+      hash = (signing || line).to_s[/\b\h{40}\b/]&.upcase
+      own = named.find { |certificate| OpenSSL::Digest::SHA1.hexdigest(certificate.to_der).upcase == hash }
+      now = Time.now
+      current = (own ? [own] : named).any? { |certificate| certificate.not_before <= now && now <= certificate.not_after }
+      facts = ["certificate named APPLE_SIGNING_IDENTITY: present", "within its validity dates: #{current ? 'yes' : 'no'}",
+        "matching private key: #{line ? 'present' : 'absent'}"]
+      if signing
+        # Scan only the trust result after the name, which may contain anything.
+        codes = signing.split(%Q{"#{identity}"}, 2).last.scan(/CSSMERR_[A-Z0-9_]+/).uniq
+        facts << "trust errors: #{codes.empty? ? 'none reported' : codes.join(', ')}"
+      elsif line
+        facts << "matches the code-signing policy: no"
+      end
+      facts.join("; ")
+    rescue Error, OpenSSL::X509::CertificateError
+      "certificate details could not be read"
+    end
+
+    private def identity_line(policy, identity)
+      execute("security", "find-identity", "-p", policy, @keychain).lines.find { |entry| entry.include?(%Q{"#{identity}"}) }
     end
 
     def sign_payload(payload)

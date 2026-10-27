@@ -161,6 +161,14 @@ All six [Apple environment variables](../_guides/apple-notarization.md#1-set-up-
 are needed. None means an unsigned build; an incomplete set fails explicitly.
 Check the exact identity, export password, Team ID, and app-specific password.
 
+When the imported `.p12` yields no valid signing identity, the error says
+whether a certificate named `APPLE_SIGNING_IDENTITY` was imported, whether
+today is within its validity dates, whether its private key was included, and
+any trust error macOS reported, such as `CSSMERR_TP_NOT_TRUSTED` when the
+certificate's chain cannot be verified. If macOS does not consider the
+identity for code signing at all, the error says so instead. It names no
+certificate, so the message is safe in public CI logs.
+
 A native script must package `@PAYLOAD@` and preserve its signatures. A failure
 from Apple's service prevents a completed signed build. Use the submission
 information in the error to investigate Apple's result before retrying.
