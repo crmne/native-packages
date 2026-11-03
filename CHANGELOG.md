@@ -28,6 +28,11 @@
   from `NATIVE_PACKAGES_GPG_KEY` or the user's GnuPG, and every signature is
   checked against the configured fingerprint.
 
+- Publish a signed DNF repository with `publish --to dnf`. A `dnf` section
+  takes the same fields as `apt`. The build's RPM packages go into
+  `packages/`, `createrepo_c` writes `repodata/`, and `repomd.xml` is signed
+  beside it, with the public key and a `.repo` file for users.
+
 ## 0.11.0 (2026-10-26)
 
 - Sign Windows code with Azure Artifact Signing. A `windows.signing` section

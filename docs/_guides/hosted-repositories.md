@@ -1,6 +1,6 @@
 ---
 title: Hosted package repositories
-description: Publish signed APT repositories that users add once and update with their package manager.
+description: Publish signed APT and DNF repositories that users add once and update with their package manager.
 nav_order: 13
 ---
 
@@ -46,6 +46,10 @@ apt:
   url: https://example.org/apt
   signing_key: 0123456789ABCDEF0123456789ABCDEF01234567
   keep: 3
+dnf:
+  directory: ../hello-site/rpm
+  url: https://example.org/rpm
+  signing_key: 0123456789ABCDEF0123456789ABCDEF01234567
 ```
 
 | Field | Purpose |
@@ -62,7 +66,7 @@ Build as usual, then publish the build to the repositories:
 
 ```sh
 native-packages build --version 1.2.3
-native-packages publish --from dist/packages/1.2.3 --to github,apt
+native-packages publish --from dist/packages/1.2.3 --to github,apt,dnf
 ```
 
 Each publication adds the build's packages to what the directory already
@@ -89,6 +93,26 @@ sudo apt update && sudo apt install hello
 The `.sources` file trusts this key for this repository alone. Use it on
 apt 1.1 and later (Debian 9, Ubuntu 16.04 and newer).
 
+## DNF
+
+`publish --to dnf` copies each `.rpm` into `packages/`, runs `createrepo_c`
+to write `repodata/`, and signs `repodata/repomd.xml` as
+`repodata/repomd.xml.asc`. Beside them go the public key as `hello.asc` and
+a `hello.repo` file. Users install with:
+
+```sh
+sudo curl -fsSLo /etc/yum.repos.d/hello.repo https://example.org/rpm/hello.repo
+sudo dnf install hello
+```
+
+dnf asks once whether to trust the key, then checks the metadata's signature
+on every update (`repo_gpgcheck=1`). The packages themselves are signed only
+if you sign them, with nFPM's `rpm.signature`; `hello.repo` turns on
+`gpgcheck` when every published RPM carries a signature. The same file works
+for Zypper (`zypper addrepo https://example.org/rpm/hello.repo`). Install
+`createrepo_c` (in the `createrepo-c` package on Debian and Ubuntu) on the
+machine that publishes.
+
 ## GitHub Pages
 
 Serve the site from a branch or folder, and add an empty `.nojekyll` file
@@ -101,7 +125,7 @@ release job can check out the site beside the app:
     repository: example/hello-site
     path: hello-site
     token: ${{ secrets.SITE_TOKEN }}
-- run: native-packages publish --from dist/native-packages --to apt
+- run: native-packages publish --from dist/native-packages --to apt,dnf
   env:
     NATIVE_PACKAGES_GPG_KEY: ${{ secrets.PACKAGES_GPG_KEY }}
 - run: |
@@ -111,6 +135,6 @@ release job can check out the site beside the app:
     git push
 ```
 
-With `directory: hello-site/apt` in the configuration, the repository lands
-in that checkout. GitHub Pages serves sites of up to 1 GB, so keep `keep` low
+With `directory: hello-site/apt` and `hello-site/rpm` in the configuration,
+the repositories land in that checkout. GitHub Pages serves sites of up to 1 GB, so keep `keep` low
 for large packages.

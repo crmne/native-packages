@@ -44,6 +44,7 @@ expressions. Use the replacement values listed below.
 | `flatpak` | Required by `flatpak` targets: the app ID, runtime, command and permissions. See [Flatpak](platforms.md#flatpak). |
 | `snap` | Required by `snap` targets: the base, confinement and apps, and the Snap Store channels. See [Snap](platforms.md#snap). |
 | `apt` | Optional signed APT repository for `publish --to apt`. See [Hosted package repositories](../_guides/hosted-repositories.md). |
+| `dnf` | Optional signed DNF repository for `publish --to dnf`. See [Hosted package repositories](../_guides/hosted-repositories.md). |
 
 Quote tool versions so they remain strings. A version mismatch reports the
 command needed to install and select the configured gem.

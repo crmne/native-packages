@@ -14,8 +14,8 @@ libraries.
 
 | Format | Target | What you supply | Packaging tools |
 | --- | --- | --- | --- |
-| `deb` | Linux | Compatible Linux files and package metadata. | nFPM, `readelf` for binaries. |
-| `rpm` | Linux | Compatible Linux files and RPM-specific dependencies. | nFPM, `readelf` for binaries. |
+| `deb` | Linux | Compatible Linux files and package metadata. | nFPM, `readelf` for binaries; `gpg` for a hosted APT repository. |
+| `rpm` | Linux | Compatible Linux files and RPM-specific dependencies. | nFPM, `readelf` for binaries; `createrepo_c` and `gpg` for a hosted DNF repository. |
 | `archlinux` | Linux | Arch-compatible files and explicit dependencies. | nFPM, `readelf` for binaries. |
 | `apk` | Linux | Suitable Alpine files, usually musl or static binaries, and dependencies. | nFPM, `readelf` for binaries. |
 | `ipk` | Linux | Files for the device/distribution baseline, dependencies, and an `abi` label. | nFPM, `readelf` for binaries. |
@@ -278,11 +278,10 @@ An Arch package file and an AUR recipe are separate outputs: the former can
 be installed directly; the latter tells Arch tooling how to obtain and package
 your app.
 
-native-packages can also write a signed APT repository from your DEB
-packages, served as static files; see
+native-packages can also write signed APT and DNF repositories from your DEB
+and RPM packages, served as static files; see
 [Hosted package repositories](../_guides/hosted-repositories.md). There is no
-NSIS adapter and no hosted DNF repository. Keep those workflows in your app's
-release process if you need them.
+NSIS adapter. Keep that workflow in your app's release process if you need it.
 
 ## What validation establishes
 
