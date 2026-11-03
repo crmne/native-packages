@@ -11,6 +11,14 @@
   the same inputs reproduce. native-packages does not write or submit
   Flathub manifests.
 
+- Add the `snap` format for Linux binary targets. A top-level `snap`
+  section (base, confinement, grade, apps with their plugs and desktop
+  entries, icon) turns the package's contents into a `.snap` with a
+  generated `meta/snap.yaml`, packed with mksquashfs as `snap pack` does,
+  without snapcraft, LXD or the network. `publish --to snapcraft` uploads
+  the build's snaps with `snapcraft upload --release` to
+  `snap.store.channels`, using `SNAPCRAFT_STORE_CREDENTIALS`.
+
 ## 0.11.0 (2026-10-26)
 
 - Sign Windows code with Azure Artifact Signing. A `windows.signing` section

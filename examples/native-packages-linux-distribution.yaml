@@ -25,7 +25,7 @@ targets:
     platform: linux
     arch: amd64
     libc: glibc
-    formats: [deb, rpm, flatpak]
+    formats: [deb, rpm, flatpak, snap]
     input:
       kind: directory
       local: dist/linux-amd64
@@ -43,3 +43,15 @@ flatpak:
     - --socket=fallback-x11
     - --share=ipc
     - --device=dri
+# A strictly confined snap sees only its base's libraries and its own files.
+snap:
+  base: core24
+  grade: stable
+  icon: /usr/share/icons/hicolor/scalable/apps/example-app.svg
+  apps:
+    example-app:
+      command: usr/bin/example-app
+      desktop: usr/share/applications/example-app.desktop
+      plugs: [wayland, x11, opengl, desktop]
+  store:
+    channels: [stable]

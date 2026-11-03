@@ -42,6 +42,7 @@ expressions. Use the replacement values listed below.
 | `version_section` | Cargo section to check; defaults to `package`. |
 | `windows` | Optional. `windows.signing` turns on [Windows code signing](#windows-signing). |
 | `flatpak` | Required by `flatpak` targets: the app ID, runtime, command and permissions. See [Flatpak](platforms.md#flatpak). |
+| `snap` | Required by `snap` targets: the base, confinement and apps, and the Snap Store channels. See [Snap](platforms.md#snap). |
 
 Quote tool versions so they remain strings. A version mismatch reports the
 command needed to install and select the configured gem.
@@ -101,7 +102,7 @@ letters, digits, and hyphens, starting with a letter or digit.
 | `appimage` | Optional for AppImage targets: `update_information`, embedded with a `.zsync` file beside the AppImage. See [AppImage](platforms.md#update-information). |
 
 Formats are `deb`, `rpm`, `archlinux`, `apk`, `ipk`, `appimage`, `flatpak`,
-`srpm`, `msix`, `dmg`, `msi`, and `inno`. See [Supported platforms](platforms.md) for their requirements.
+`snap`, `srpm`, `msix`, `dmg`, `msi`, and `inno`. See [Supported platforms](platforms.md) for their requirements.
 
 Windows targets select only `[msix]`, `[msi]` or `[inno]`; macOS targets select `[dmg]`.
 DMG, MSI and Inno each require a separate binary target. SRPM requires a separate

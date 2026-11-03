@@ -25,7 +25,7 @@ features:
     details: Describe your app's files, package metadata, and build targets in a single YAML file.
   - icon: 🐧
     title: Linux packages
-    details: Create DEB, RPM, AppImage, Flatpak, Arch, Alpine, and IPK packages from your compatible Linux builds.
+    details: Create DEB, RPM, AppImage, Flatpak, Snap, Arch, Alpine, and IPK packages from your compatible Linux builds.
   - icon: 🖥️
     title: Native installers
     details: Connect your macOS DMG script and your Windows MSI or Inno Setup script, or package Windows apps as MSIX.

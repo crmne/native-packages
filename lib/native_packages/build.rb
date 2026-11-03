@@ -7,6 +7,7 @@ require_relative "macos_signing"
 require_relative "windows_signing"
 require_relative "appimage"
 require_relative "flatpak"
+require_relative "snap"
 
 module NativePackages
   class Build
@@ -38,6 +39,7 @@ module NativePackages
       selected.each_value do |target|
         AppImage.new(root).doctor(target, update: !target["appimage"].nil?) if target.fetch("formats").include?("appimage")
         Flatpak.new(configuration).doctor(target) if target.fetch("formats").include?("flatpak")
+        Snap.new(configuration).doctor(target) if target.fetch("formats").include?("snap")
       end
       selected.each do |id, target|
         next unless target["native"]
@@ -188,6 +190,13 @@ module NativePackages
                     version: number, epoch: info.fetch("SOURCE_DATE_EPOCH"))
                   raise Error, "Flatpak build must create only its bundle" unless files(destination) == [package_path]
                   packages = [package_path]
+                elsif format == "snap"
+                  package = render_tree(configuration.package(target), configuration.target_tokens(info, id, target, payload))
+                  inspection = Inspection.new(root, configuration.data.fetch("libraries")).check(package, target, format)
+                  package_path, inspection["snap"] = Snap.new(configuration).build(package, target, destination, version: number,
+                    epoch: info.fetch("SOURCE_DATE_EPOCH"))
+                  raise Error, "Snap build must create only its snap" unless files(destination) == [package_path]
+                  packages = [package_path]
                 else
                   package = render_tree(configuration.package(target), configuration.target_tokens(info, id, target, payload))
                   if number.include?("-") && (package.fetch("version_schema", "semver") != "semver" || %w[prerelease version_metadata].any? { |key| package.key?(key) && !package[key].to_s.empty? })
@@ -211,6 +220,7 @@ module NativePackages
                   AppImage.new(root).check(packages.first) if format == "appimage"
                   AppImage.new(root).check_zsync(zsync, packages.first) if format == "appimage" && zsync
                   Flatpak.new(configuration).check(packages.first, Flatpak.architecture(target)) if format == "flatpak"
+                  Snap.new(configuration).check(packages.first) if format == "snap"
                 end
                 if native
                   native.check_output(packages.first, format)
@@ -406,7 +416,7 @@ module NativePackages
       output = Pathname.new(output).expand_path(root)
       manifest = verify(output, ids: ids)
       raise Error, "supply at least one --to destination" if destinations.empty?
-      destinations.each { |name| project.repositories.select(name) unless name == "github" }
+      destinations.each { |name| project.repositories.select(name) unless Configuration::DESTINATIONS.include?(name) }
       if manifest.fetch("version").include?("-")
         raise Error, "prereleases can only attach to an existing GitHub prerelease" unless destinations == ["github"]
         marked = capture("gh", "release", "view", "v#{manifest.fetch('version')}", "--repo", project.repository, "--json", "isPrerelease", "--jq", ".isPrerelease")
@@ -424,11 +434,18 @@ module NativePackages
             write(checksums, paths.map { |path| "#{sha256(path)}  #{path.basename}\n" }.join)
             run "gh", "release", "upload", "v#{manifest.fetch('version')}", *paths, checksums, "--repo", project.repository, "--clobber"
           end
+        elsif destination == "snapcraft"
+          Snap.new(configuration).publish(packages(manifest, output, "snap"))
         else
           project.repositories.stage(destination, output / "recipes")
           project.repositories.publish(destination, body_file: body_file)
         end
       end
+    end
+
+    # The build's packages of `format`.
+    def packages(manifest, output, format)
+      manifest.fetch("packages").select { |entry| entry.fetch("format") == format }.map { |entry| output / entry.fetch("path") }
     end
 
     def aggregate(inputs, output:, finalize_recipes: false)

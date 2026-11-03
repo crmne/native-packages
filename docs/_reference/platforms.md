@@ -21,6 +21,7 @@ libraries.
 | `ipk` | Linux | Files for the device/distribution baseline, dependencies, and an `abi` label. | nFPM, `readelf` for binaries. |
 | `appimage` | Linux | The same files as the DEB/RPM, including one desktop entry and its icon. | `mksquashfs` (squashfs-tools), `curl`, `readelf`; `zsyncmake` (zsync) with update information. |
 | `flatpak` | Linux | The same files as the DEB/RPM, under `/usr`, and a top-level `flatpak` section. | `flatpak`, `readelf`; `ostree` and `gpg` to publish a repository. |
+| `snap` | Linux | The same files as the DEB/RPM and a top-level `snap` section. | `mksquashfs` (squashfs-tools), `readelf`; `snapcraft` to upload to the Snap Store. |
 | `srpm` | Linux source target | RPM spec and source files. | nFPM; native RPM tooling for rebuild tests. |
 | `msix` | Windows | Windows binaries, identity, application assets, and capabilities. | nFPM; Windows tools for signing and installation tests. |
 | `dmg` | macOS | Complete app and a DMG script. | macOS, `lipo`, and your script's tools, such as `hdiutil`. |
@@ -181,6 +182,61 @@ Test the app in the sandbox with the permissions you declared.
 native-packages does not write Flathub manifests or submit apps to Flathub,
 because Flathub does not accept AI-assisted manifests or submissions. Write
 and submit a Flathub manifest yourself if you want to publish there.
+
+## Snap
+
+Add `snap` to a Linux binary target's `formats` and describe the snap once,
+at the top level. The fields follow `snap.yaml`:
+
+```yaml
+snap:
+  base: core24
+  confinement: strict
+  grade: stable
+  icon: /usr/share/icons/hicolor/scalable/apps/hello.svg
+  apps:
+    hello:
+      command: usr/bin/hello
+      desktop: usr/share/applications/hello.desktop
+      plugs: [wayland, x11, opengl, network, audio-playback]
+  store:
+    channels: [stable]
+```
+
+| Field | Purpose |
+| --- | --- |
+| `name` | Defaults to `nfpm.name`. 2 to 40 lowercase letters, digits and hyphens. |
+| `base` | Required, such as `core24`. |
+| `confinement` | `strict` (default), `classic` or `devmode`. |
+| `grade` | `stable` (default) or `devel`. |
+| `summary`, `description`, `license`, `title` | Default to the first line of `nfpm.description`, the description and `nfpm.license`. The summary has at most 78 characters. |
+| `apps` | Required. Each app's `command` is a path inside the snap, such as `usr/bin/hello`, and may also set `plugs`, `slots`, `environment`, `daemon` and the other `snap.yaml` app fields. |
+| `apps.APP.desktop` | Optional desktop entry the package installs. It is copied to `meta/gui/APP.desktop`, launching the app. |
+| `icon` | Optional `.png` or `.svg` the package installs; it becomes `meta/gui/icon` and the desktop entries' `Icon`. |
+| `plugs`, `slots`, `layout`, `environment` | Optional top-level `snap.yaml` sections, passed through. |
+| `store.channels` | Channels for `publish --to snapcraft`, such as `stable` or `latest/edge`. |
+
+The package's `contents` become the snap's root (`/usr/bin/hello` is
+`$SNAP/usr/bin/hello`), beside a generated `meta/snap.yaml`. A contents entry
+with `packager: snap` is included only in the snap. The output is
+`NAME_VERSION_ARCH.snap` with Snap's architecture names (`amd64`, `arm64`,
+`armhf`, `ppc64el`, `s390x`, `riscv64`). It is an xz SquashFS image owned by
+root, packed with mksquashfs as `snap pack` packs a prime directory. No
+snapcraft, LXD or network is involved, and the same inputs and
+`SOURCE_DATE_EPOCH` give the same bytes.
+
+**Libraries come from the base snap or the package.** A strictly confined
+snap does not see the host's libraries, and no snapcraft extension (such as
+`gnome` or `kde-neon`) is applied, so a dynamically linked desktop app needs
+its libraries among the contents and an `environment` that points at them.
+Static binaries need nothing more. Install the snap with
+`snap install --dangerous FILE` and test it under its confinement before
+uploading.
+
+`publish --to snapcraft` uploads each snap in the build with
+`snapcraft upload --release=CHANNELS`. The Snap Store login comes from
+`SNAPCRAFT_STORE_CREDENTIALS` (from `snapcraft export-login`), never the
+configuration, and the snap's name must already be registered.
 
 ## MSIX
 

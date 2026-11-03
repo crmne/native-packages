@@ -115,6 +115,25 @@ To combine builds from several jobs, follow
 [Building across platforms](multi-platform.md). Builds with deferred recipes
 must be finalized before publication.
 
+## Upload snaps to the Snap Store
+
+Register the snap's name in the Snap Store, set `snap.store.channels`, and
+export a login for the release job:
+
+```sh
+snapcraft export-login --snaps hello --acls package_upload,package_release credentials.txt
+```
+
+Store that file's contents as a secret and pass it to the publish step as
+`SNAPCRAFT_STORE_CREDENTIALS`. With `snapcraft` installed:
+
+```sh
+native-packages publish --from dist/packages/1.2.3 --to snapcraft
+```
+
+Each snap in the build is uploaded and released to the configured channels.
+See [Snap](../_reference/platforms.md#snap).
+
 ## Update distribution recipes
 
 For AUR, Homebrew, or another downstream repository, first configure its

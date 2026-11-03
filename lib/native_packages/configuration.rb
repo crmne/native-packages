@@ -3,6 +3,7 @@
 require_relative "project"
 require_relative "appimage"
 require_relative "flatpak"
+require_relative "snap"
 require_relative "windows_signing"
 
 module NativePackages
@@ -11,11 +12,13 @@ module NativePackages
     NATIVE_FORMATS = %w[dmg inno msi].freeze
     # Formats native-packages writes itself from the package's contents,
     # without nFPM.
-    IMAGE_FORMATS = %w[appimage flatpak].freeze
-    FORMATS = (%w[deb rpm archlinux apk ipk msix srpm appimage flatpak] + NATIVE_FORMATS).freeze
+    IMAGE_FORMATS = %w[appimage flatpak snap].freeze
+    # Publish destinations besides the configured downstream repositories.
+    DESTINATIONS = %w[github snapcraft].freeze
+    FORMATS = (%w[deb rpm archlinux apk ipk msix srpm appimage flatpak snap] + NATIVE_FORMATS).freeze
     NFPM_VERSION = "2.47.0"
     NAMES = %w[native-packages.yaml native-packages.yml].freeze
-    KEYS = %w[schema tool nfpm targets release assets templates repositories revisions libraries version_file version_section windows flatpak].freeze
+    KEYS = %w[schema tool nfpm targets release assets templates repositories revisions libraries version_file version_section windows flatpak snap].freeze
     attr_reader :root, :path, :data
 
     def self.discover(root, explicit = nil)
@@ -137,6 +140,10 @@ module NativePackages
           raise Error, "#{id}: Flatpak requires a Linux binary target" unless target["platform"] == "linux" && kind == "binary"
           Flatpak.architecture(target)
         end
+        if formats.include?("snap")
+          raise Error, "#{id}: Snap requires a Linux binary target" unless target["platform"] == "linux" && kind == "binary"
+          Snap.architecture(target)
+        end
         begin
           update_information(target, "9.8.7")
         rescue Error => error
@@ -170,12 +177,15 @@ module NativePackages
         render_tree(target["before_build"], target_tokens(metadata, id, target, "/payload")) if target["before_build"]
         render_tree(target["after_package"], target_tokens(metadata, id, target, "/payload").merge("PACKAGE" => "/output/package", "FORMAT" => formats.first)) if target["after_package"]
       end
+      reserved = data.fetch("repositories").keys & DESTINATIONS
+      raise Error, "repositories.#{reserved.first}: that name is a built-in publish destination; choose another" unless reserved.empty?
       data.fetch("templates").each do |destination, source|
         relative_path(render(destination, metadata))
         render((root / relative_path(source)).binread, metadata)
       end
       WindowsSigning.validate(data)
       Flatpak.validate(data)
+      Snap.validate(data)
       project.repositories
       true
     end

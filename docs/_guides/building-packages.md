@@ -132,7 +132,8 @@ installation. It needs one desktop entry and its icon among the contents; see
 
 Add `flatpak` for a Flatpak bundle of the same files, with a top-level
 `flatpak` section naming the app ID, runtime and sandbox permissions; see
-[Flatpak](../_reference/platforms.md#flatpak).
+[Flatpak](../_reference/platforms.md#flatpak). Add `snap` for a snap, with a
+top-level `snap` section; see [Snap](../_reference/platforms.md#snap).
 
 Use a separate musl or static build for Alpine. Changing `formats` alone
 does not change which systems a binary can run on.
