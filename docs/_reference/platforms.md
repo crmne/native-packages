@@ -20,6 +20,7 @@ libraries.
 | `apk` | Linux | Suitable Alpine files, usually musl or static binaries, and dependencies. | nFPM, `readelf` for binaries. |
 | `ipk` | Linux | Files for the device/distribution baseline, dependencies, and an `abi` label. | nFPM, `readelf` for binaries. |
 | `appimage` | Linux | The same files as the DEB/RPM, including one desktop entry and its icon. | `mksquashfs` (squashfs-tools), `curl`, `readelf`; `zsyncmake` (zsync) with update information. |
+| `flatpak` | Linux | The same files as the DEB/RPM, under `/usr`, and a top-level `flatpak` section. | `flatpak`, `readelf`; `ostree` and `gpg` to publish a repository. |
 | `srpm` | Linux source target | RPM spec and source files. | nFPM; native RPM tooling for rebuild tests. |
 | `msix` | Windows | Windows binaries, identity, application assets, and capabilities. | nFPM; Windows tools for signing and installation tests. |
 | `dmg` | macOS | Complete app and a DMG script. | macOS, `lipo`, and your script's tools, such as `hdiutil`. |
@@ -122,6 +123,64 @@ pattern. An `after_package` hook must leave the AppImage as it is, or the
 
 Running an AppImage needs FUSE on the user's system, or
 `./App.AppImage --appimage-extract-and-run`.
+
+## Flatpak
+
+Add `flatpak` to a Linux binary target's `formats` (`amd64` or `arm64`) and
+describe the app once, at the top level:
+
+```yaml
+flatpak:
+  id: org.example.Hello
+  runtime: org.freedesktop.Platform
+  runtime_version: '24.08'
+  sdk: org.freedesktop.Sdk
+  command: hello
+  metainfo: packaging/org.example.Hello.metainfo.xml
+  runtime_repo: https://dl.flathub.org/repo/flathub.flatpakrepo
+  finish_args:
+    - --socket=wayland
+    - --socket=fallback-x11
+    - --share=ipc
+    - --share=network
+```
+
+| Field | Purpose |
+| --- | --- |
+| `id` | Required. The reverse-DNS application ID. |
+| `runtime`, `runtime_version` | Required. The runtime the app runs on, such as `org.freedesktop.Platform` `24.08`. |
+| `sdk` | Optional. Recorded for `flatpak run --devel`; nothing is built with it. |
+| `command` | Required. A program in `/usr/bin` (which becomes `/app/bin`), or an absolute `/app` path. |
+| `finish_args` | The app's sandbox permissions, as `flatpak build-finish` options. |
+| `metainfo` | Optional AppStream file, installed as `ID.metainfo.xml`. It must declare `<id>ID</id>`. |
+| `branch` | Defaults to `stable`. |
+| `runtime_repo` | Optional `.flatpakrepo` URL from which `flatpak install` fetches a missing runtime. |
+
+The bundle holds the same `contents` as the other formats, with `/usr`
+becoming `/app`; a file installed anywhere else fails the build. A contents
+entry with `packager: flatpak` is included only in the Flatpak. Flatpak
+exports only files named after the app ID, so the package's one desktop entry
+becomes `ID.desktop`, its `Icon` becomes the ID, and the icon files it names
+are renamed to match.
+
+The output is `NAME-VERSION-ARCH.flatpak` (`x86_64` or `aarch64`), a
+single-file bundle users install with `flatpak install --user FILE`. The app
+is already built, so native-packages writes the metadata and runs
+`flatpak build-finish`, `build-export` and `build-bundle` on the staged
+files. No flatpak-builder, SDK or network is needed, and nothing is compiled
+in the sandbox. Runtimes installed on the build host are hidden from
+`build-finish`, so they cannot add permissions. The same inputs and
+`SOURCE_DATE_EPOCH` give the same OSTree commit, which `build.json` records;
+the bundle file around it also records when it was written, so its hash
+changes between builds.
+
+**Libraries come from the runtime.** The binary must run against the
+runtime's libraries, or the package must install the others under `/usr/lib`.
+Test the app in the sandbox with the permissions you declared.
+
+native-packages does not write Flathub manifests or submit apps to Flathub,
+because Flathub does not accept AI-assisted manifests or submissions. Write
+and submit a Flathub manifest yourself if you want to publish there.
 
 ## MSIX
 

@@ -6,6 +6,7 @@ require_relative "native_recipe"
 require_relative "macos_signing"
 require_relative "windows_signing"
 require_relative "appimage"
+require_relative "flatpak"
 
 module NativePackages
   class Build
@@ -33,9 +34,10 @@ module NativePackages
     def doctor(ids: [], formats: [], release: false, defer_recipes: false)
       configuration.validate
       selected = configuration.select(ids: ids, formats: formats)
-      nfpm_version if selected.values.any? { |target| !(target.fetch("formats") - Configuration::NATIVE_FORMATS - ["appimage"]).empty? }
+      nfpm_version if selected.values.any? { |target| !(target.fetch("formats") - Configuration::NATIVE_FORMATS - Configuration::IMAGE_FORMATS).empty? }
       selected.each_value do |target|
         AppImage.new(root).doctor(target, update: !target["appimage"].nil?) if target.fetch("formats").include?("appimage")
+        Flatpak.new(configuration).doctor(target) if target.fetch("formats").include?("flatpak")
       end
       selected.each do |id, target|
         next unless target["native"]
@@ -179,6 +181,13 @@ module NativePackages
                   outputs = [package_path, zsync].compact.sort
                   raise Error, "AppImage build must create only its package and .zsync file" unless files(destination) == outputs
                   packages = [package_path]
+                elsif format == "flatpak"
+                  package = render_tree(configuration.package(target), configuration.target_tokens(info, id, target, payload))
+                  inspection = Inspection.new(root, configuration.data.fetch("libraries")).check(package, target, format)
+                  package_path, inspection["flatpak"] = Flatpak.new(configuration).build(package, target, destination, name: configuration.name,
+                    version: number, epoch: info.fetch("SOURCE_DATE_EPOCH"))
+                  raise Error, "Flatpak build must create only its bundle" unless files(destination) == [package_path]
+                  packages = [package_path]
                 else
                   package = render_tree(configuration.package(target), configuration.target_tokens(info, id, target, payload))
                   if number.include?("-") && (package.fetch("version_schema", "semver") != "semver" || %w[prerelease version_metadata].any? { |key| package.key?(key) && !package[key].to_s.empty? })
@@ -201,6 +210,7 @@ module NativePackages
                   raise Error, "after_package must preserve the package path and output set" unless files(destination) == outputs
                   AppImage.new(root).check(packages.first) if format == "appimage"
                   AppImage.new(root).check_zsync(zsync, packages.first) if format == "appimage" && zsync
+                  Flatpak.new(configuration).check(packages.first, Flatpak.architecture(target)) if format == "flatpak"
                 end
                 if native
                   native.check_output(packages.first, format)

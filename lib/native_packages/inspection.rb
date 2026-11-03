@@ -115,8 +115,9 @@ module NativePackages
           depends << (format == "deb" ? "libc6 (>= #{floor})" : "glibc >= #{floor}")
         end
         override["depends"] = depends.uniq
-      elsif format == "appimage"
-        # Nothing is bundled: the host supplies these, as for deb and rpm.
+      elsif %w[appimage flatpak].include?(format)
+        # Nothing is bundled: the host (AppImage) or the Flatpak runtime
+        # supplies these.
       elsif !external.empty? && package.fetch("overrides", {}).fetch(format, {}).fetch("depends", package.fetch("depends", [])).empty?
         raise Error, "#{format}: declare dependencies for #{external.join(', ')}"
       end

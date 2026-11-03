@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Add the `flatpak` format for Linux binary targets. A top-level `flatpak`
+  section (app ID, runtime, command, `finish_args`, optional metainfo) turns
+  the package's contents into a single-file `.flatpak` bundle with
+  `flatpak build-finish`, `build-export` and `build-bundle`, without
+  flatpak-builder, an SDK or the network. The desktop entry and icon are
+  renamed after the app ID, and `build.json` records the OSTree commit, which
+  the same inputs reproduce. native-packages does not write or submit
+  Flathub manifests.
+
 ## 0.11.0 (2026-10-26)
 
 - Sign Windows code with Azure Artifact Signing. A `windows.signing` section

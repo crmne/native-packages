@@ -1,0 +1,45 @@
+# A desktop app distributed on Linux beyond release downloads.
+# Supply dist/linux-amd64 (the program, its desktop entry and its icon) and
+# packaging/org.example.App.metainfo.xml before building.
+schema: 1
+tool:
+  version: '0.11.0'
+  nfpm: '2.47.0'
+nfpm:
+  name: example-app
+  description: Example native application
+  maintainer: Example Maintainer <maintainer@example.org>
+  homepage: https://example.org/example-app
+  license: MIT
+  contents:
+    - src: '@PAYLOAD@/example-app'
+      dst: /usr/bin/example-app
+      file_info:
+        mode: 0755
+    - src: '@PAYLOAD@/example-app.desktop'
+      dst: /usr/share/applications/example-app.desktop
+    - src: '@PAYLOAD@/example-app.svg'
+      dst: /usr/share/icons/hicolor/scalable/apps/example-app.svg
+targets:
+  linux-amd64:
+    platform: linux
+    arch: amd64
+    libc: glibc
+    formats: [deb, rpm, flatpak]
+    input:
+      kind: directory
+      local: dist/linux-amd64
+release:
+  repository: example/example-app
+flatpak:
+  id: org.example.App
+  runtime: org.freedesktop.Platform
+  runtime_version: '24.08'
+  command: example-app
+  metainfo: packaging/org.example.App.metainfo.xml
+  runtime_repo: https://dl.flathub.org/repo/flathub.flatpakrepo
+  finish_args:
+    - --socket=wayland
+    - --socket=fallback-x11
+    - --share=ipc
+    - --device=dri

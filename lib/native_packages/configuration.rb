@@ -2,16 +2,20 @@
 
 require_relative "project"
 require_relative "appimage"
+require_relative "flatpak"
 require_relative "windows_signing"
 
 module NativePackages
   class Configuration
     include Support
     NATIVE_FORMATS = %w[dmg inno msi].freeze
-    FORMATS = (%w[deb rpm archlinux apk ipk msix srpm appimage] + NATIVE_FORMATS).freeze
+    # Formats native-packages writes itself from the package's contents,
+    # without nFPM.
+    IMAGE_FORMATS = %w[appimage flatpak].freeze
+    FORMATS = (%w[deb rpm archlinux apk ipk msix srpm appimage flatpak] + NATIVE_FORMATS).freeze
     NFPM_VERSION = "2.47.0"
     NAMES = %w[native-packages.yaml native-packages.yml].freeze
-    KEYS = %w[schema tool nfpm targets release assets templates repositories revisions libraries version_file version_section windows].freeze
+    KEYS = %w[schema tool nfpm targets release assets templates repositories revisions libraries version_file version_section windows flatpak].freeze
     attr_reader :root, :path, :data
 
     def self.discover(root, explicit = nil)
@@ -129,6 +133,10 @@ module NativePackages
         elsif target.key?("appimage")
           raise Error, "#{id}.appimage: only for targets that build an AppImage"
         end
+        if formats.include?("flatpak")
+          raise Error, "#{id}: Flatpak requires a Linux binary target" unless target["platform"] == "linux" && kind == "binary"
+          Flatpak.architecture(target)
+        end
         begin
           update_information(target, "9.8.7")
         rescue Error => error
@@ -167,6 +175,7 @@ module NativePackages
         render((root / relative_path(source)).binread, metadata)
       end
       WindowsSigning.validate(data)
+      Flatpak.validate(data)
       project.repositories
       true
     end
