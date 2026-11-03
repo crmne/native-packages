@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "digest"
+require_relative "staging"
 
 module NativePackages
   # Builds a type 2 AppImage from the same contents nFPM packages: the files
@@ -9,6 +10,7 @@ module NativePackages
   # as the deb and rpm packages do.
   class AppImage
     include Support
+    include Staging
     RUNTIME = "20251108"
     RUNTIME_URL = "https://github.com/AppImage/type2-runtime/releases/download/#{RUNTIME}"
     # nFPM architecture => [AppImage architecture, runtime SHA-256].
@@ -135,7 +137,7 @@ module NativePackages
       Dir.mktmpdir("native-packages-appimage-") do |directory|
         appdir = Pathname.new(directory) / "AppDir"
         appdir.mkpath
-        stage(package, appdir)
+        stage(package, appdir, "appimage")
         entry = integrate(appdir)
         normalize(appdir, epoch)
         image = Pathname.new(directory) / "filesystem.squashfs"
@@ -185,54 +187,6 @@ module NativePackages
       raise Error, "not a type 2 AppImage: #{path}" unless header&.start_with?("\x7fELF".b) && header.byteslice(8, 3) == "AI\x02".b
     end
 
-    # nFPM overrides replace the contents list when one is supplied.
-    def contents(package)
-      package.fetch("overrides", {}).fetch("appimage", {}).fetch("contents", package.fetch("contents"))
-        .reject { |item| item["packager"] && item["packager"] != "appimage" }
-    end
-
-    def inside(appdir, destination)
-      raise Error, "appimage: content destinations must be absolute: #{destination}" unless destination.to_s.start_with?("/")
-      appdir / relative_path(destination.to_s.delete_prefix("/"))
-    end
-
-    def stage(package, appdir)
-      contents(package).each do |item|
-        type = item.fetch("type", "file")
-        next if type == "ghost"
-        target = inside(appdir, item.fetch("dst"))
-        mode = item.dig("file_info", "mode")
-        case type
-        when "dir"
-          target.mkpath
-        when "symlink"
-          target.dirname.mkpath
-          File.symlink(item.fetch("src"), target)
-        when "file", "tree", "config", "config|noreplace", "config|missingok"
-          source = File.expand_path(item.fetch("src"), root)
-          paths = package["disable_globbing"] ? [source].select { |path| File.exist?(path) } : Dir.glob(source).sort
-          raise Error, "missing package content: #{source}" if paths.empty?
-          # As nFPM does: a glob source, or a destination ending in a slash,
-          # makes the destination a directory that takes each match's name.
-          pattern = !package["disable_globbing"] && item.fetch("src").match?(/[*?\[{]/)
-          single = paths.length == 1 && File.file?(paths.first) && type != "tree" && !pattern && !item.fetch("dst").end_with?("/")
-          paths.each do |path|
-            if File.directory?(path)
-              target.mkpath
-              FileUtils.cp_r(Dir.children(path).map { |child| File.join(path, child) }, target)
-            else
-              file = single ? target : target / File.basename(path)
-              file.dirname.mkpath
-              FileUtils.cp(path, file)
-              file.chmod(mode) if mode
-            end
-          end
-        else
-          raise Error, "appimage: unsupported content type #{type}"
-        end
-      end
-    end
-
     # AppImage's root needs the desktop entry, its icon and AppRun.
     def integrate(appdir)
       entries = Pathname.glob(appdir / "usr/share/applications/*.desktop")
@@ -243,7 +197,7 @@ module NativePackages
         result[key] ||= value if value && %w[Exec Icon].include?(key)
       end
       command = Shellwords.split(fields.fetch("Exec") { raise Error, "appimage: #{desktop.basename} has no Exec" }).first
-      executable = command.start_with?("/") ? inside(appdir, command) : appdir / "usr/bin" / relative_path(command)
+      executable = command.start_with?("/") ? inside(appdir, command, "appimage") : appdir / "usr/bin" / relative_path(command)
       raise Error, "appimage: #{desktop.basename} runs #{command}, which the package does not install" unless executable.file? && executable.executable?
       name = fields.fetch("Icon") { raise Error, "appimage: #{desktop.basename} has no Icon" }
       raise Error, "appimage: Icon must be a name, not a path" if name.include?("/")
@@ -256,22 +210,6 @@ module NativePackages
       File.symlink(icon.basename.to_s, appdir / ".DirIcon")
       File.symlink(executable.relative_path_from(appdir).to_s, appdir / "AppRun")
       { "desktop" => desktop.basename.to_s, "icon" => icon.basename.to_s, "executable" => executable.relative_path_from(appdir).to_s }
-    end
-
-    # The same bytes for the same inputs: fixed modes and times.
-    def normalize(appdir, epoch)
-      time = Time.at(epoch)
-      Pathname.glob(appdir / "**/*", File::FNM_DOTMATCH).each do |path|
-        next if path.basename.to_s == "."
-        if path.symlink?
-          File.lutime(time, time, path)
-        else
-          path.chmod(path.directory? || path.executable? ? 0o755 : 0o644)
-          File.utime(time, time, path)
-        end
-      end
-      appdir.chmod(0o755)
-      File.utime(time, time, appdir)
     end
   end
 end
