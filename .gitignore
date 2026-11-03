@@ -9,3 +9,7 @@
 /docs/.sass-cache/
 /docs/_site/
 /docs/vendor/
+
+# Agent worktrees and hand-off notes stay local.
+/.claude/
+/HANDOFF.md
