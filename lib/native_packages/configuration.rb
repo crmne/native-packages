@@ -6,6 +6,7 @@ require_relative "flatpak"
 require_relative "snap"
 require_relative "apt_repository"
 require_relative "dnf_repository"
+require_relative "flatpak_repository"
 require_relative "windows_signing"
 
 module NativePackages
@@ -16,7 +17,7 @@ module NativePackages
     # without nFPM.
     IMAGE_FORMATS = %w[appimage flatpak snap].freeze
     # Publish destinations besides the configured downstream repositories.
-    DESTINATIONS = %w[github snapcraft apt dnf].freeze
+    DESTINATIONS = %w[github snapcraft apt dnf flatpak].freeze
     FORMATS = (%w[deb rpm archlinux apk ipk msix srpm appimage flatpak snap] + NATIVE_FORMATS).freeze
     NFPM_VERSION = "2.47.0"
     NAMES = %w[native-packages.yaml native-packages.yml].freeze
@@ -190,6 +191,7 @@ module NativePackages
       Snap.validate(data)
       AptRepository.validate(data)
       DnfRepository.validate(data)
+      FlatpakRepository.validate(data)
       project.repositories
       true
     end

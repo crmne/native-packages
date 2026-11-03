@@ -1,6 +1,6 @@
 ---
 title: Hosted package repositories
-description: Publish signed APT and DNF repositories that users add once and update with their package manager.
+description: Publish signed APT, DNF and Flatpak repositories that users add once and update with their package manager.
 nav_order: 13
 ---
 
@@ -50,6 +50,13 @@ dnf:
   directory: ../hello-site/rpm
   url: https://example.org/rpm
   signing_key: 0123456789ABCDEF0123456789ABCDEF01234567
+flatpak:
+  # The app's id, runtime, command and permissions, as for any Flatpak.
+  repository:
+    directory: ../hello-site/flatpak
+    url: https://example.org/flatpak
+    title: Hello
+    signing_key: 0123456789ABCDEF0123456789ABCDEF01234567
 ```
 
 | Field | Purpose |
@@ -57,8 +64,9 @@ dnf:
 | `directory` | Required. Where the repository is written, relative to the configuration file. |
 | `url` | Required. The `https://` URL at which that directory is served. |
 | `signing_key` | Required. The signing key's full fingerprint. |
-| `keep` | How many versions of each package and architecture to keep. Defaults to `3`. |
+| `keep` | APT and DNF only. How many versions of each package and architecture to keep. Defaults to `3`. |
 | `suite`, `component` | APT only. Default to `stable` and `main`. |
+| `title`, `homepage` | Flatpak only. The repository's name in software centers (defaults to the package name) and an `https://` homepage. |
 
 ## 3. Publish
 
@@ -66,7 +74,7 @@ Build as usual, then publish the build to the repositories:
 
 ```sh
 native-packages build --version 1.2.3
-native-packages publish --from dist/packages/1.2.3 --to github,apt,dnf
+native-packages publish --from dist/packages/1.2.3 --to github,apt,dnf,flatpak
 ```
 
 Each publication adds the build's packages to what the directory already
@@ -113,6 +121,28 @@ for Zypper (`zypper addrepo https://example.org/rpm/hello.repo`). Install
 `createrepo_c` (in the `createrepo-c` package on Debian and Ubuntu) on the
 machine that publishes.
 
+## Flatpak
+
+`publish --to flatpak` imports each Flatpak bundle into an OSTree
+repository in the directory, signing its commits, then updates the
+repository's summary and static deltas with `flatpak build-update-repo`.
+Each bundle's commit stands alone, without the previous version as its
+parent, so the repository serves each app's newest commit and prunes the
+rest; users cannot roll back to an older version through it. Beside it go
+`hello.flatpakrepo`, for adding the repository, and `ID.flatpakref`, for
+installing the app, both carrying the public key. Users install with:
+
+```sh
+flatpak install --user https://example.org/flatpak/org.example.Hello.flatpakref
+```
+
+and get updates from `flatpak update`. If `flatpak.runtime_repo` is set, a
+missing runtime comes from there. Publishing needs `flatpak` and `ostree`.
+
+This is your own repository, not Flathub. native-packages does not write or
+submit Flathub manifests, because Flathub does not accept AI-assisted
+manifests or submissions.
+
 ## GitHub Pages
 
 Serve the site from a branch or folder, and add an empty `.nojekyll` file
@@ -125,7 +155,7 @@ release job can check out the site beside the app:
     repository: example/hello-site
     path: hello-site
     token: ${{ secrets.SITE_TOKEN }}
-- run: native-packages publish --from dist/native-packages --to apt,dnf
+- run: native-packages publish --from dist/native-packages --to apt,dnf,flatpak
   env:
     NATIVE_PACKAGES_GPG_KEY: ${{ secrets.PACKAGES_GPG_KEY }}
 - run: |
@@ -135,6 +165,6 @@ release job can check out the site beside the app:
     git push
 ```
 
-With `directory: hello-site/apt` and `hello-site/rpm` in the configuration,
-the repositories land in that checkout. GitHub Pages serves sites of up to 1 GB, so keep `keep` low
+With directories such as `hello-site/apt` in the configuration, the
+repositories land in that checkout. GitHub Pages serves sites of up to 1 GB, so keep `keep` low
 for large packages.

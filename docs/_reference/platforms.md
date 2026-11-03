@@ -156,6 +156,7 @@ flatpak:
 | `metainfo` | Optional AppStream file, installed as `ID.metainfo.xml`. It must declare `<id>ID</id>`. |
 | `branch` | Defaults to `stable`. |
 | `runtime_repo` | Optional `.flatpakrepo` URL from which `flatpak install` fetches a missing runtime. |
+| `repository` | Optional [self-hosted Flatpak repository](../_guides/hosted-repositories.md#flatpak) for `publish --to flatpak`. |
 
 The bundle holds the same `contents` as the other formats, with `/usr`
 becoming `/app`; a file installed anywhere else fails the build. A contents
@@ -278,8 +279,8 @@ An Arch package file and an AUR recipe are separate outputs: the former can
 be installed directly; the latter tells Arch tooling how to obtain and package
 your app.
 
-native-packages can also write signed APT and DNF repositories from your DEB
-and RPM packages, served as static files; see
+native-packages can also write signed APT, DNF and Flatpak repositories from
+your DEB, RPM and Flatpak packages, served as static files; see
 [Hosted package repositories](../_guides/hosted-repositories.md). There is no
 NSIS adapter. Keep that workflow in your app's release process if you need it.
 

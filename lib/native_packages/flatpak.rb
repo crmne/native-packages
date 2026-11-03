@@ -16,7 +16,7 @@ module NativePackages
     include Staging
     # nFPM architecture => Flatpak architecture.
     ARCHES = { "amd64" => "x86_64", "arm64" => "aarch64" }.freeze
-    KEYS = %w[id runtime runtime_version sdk command finish_args metainfo branch runtime_repo].freeze
+    KEYS = %w[id runtime runtime_version sdk command finish_args metainfo branch runtime_repo repository].freeze
     # Reverse-DNS: three or more elements, no hyphen in the last one.
     ID = /\A(?=.{1,255}\z)(?:[A-Za-z_][A-Za-z0-9_-]*\.){2,}[A-Za-z_][A-Za-z0-9_]*\z/
     RUNTIME = /\A(?:[A-Za-z_][A-Za-z0-9_-]*\.)+[A-Za-z_][A-Za-z0-9_]*\z/

@@ -33,6 +33,13 @@
   `packages/`, `createrepo_c` writes `repodata/`, and `repomd.xml` is signed
   beside it, with the public key and a `.repo` file for users.
 
+- Publish a signed, self-hosted Flatpak repository with
+  `publish --to flatpak`. `flatpak.repository` takes a directory, URL and
+  signing key as `apt` does, plus a title and homepage. The build's bundles are
+  imported into an OSTree repository with signed commits, its summary and
+  static deltas are updated, replaced commits are pruned, and `.flatpakrepo` and
+  `.flatpakref` files are written for users. This is not Flathub.
+
 ## 0.11.0 (2026-10-26)
 
 - Sign Windows code with Azure Artifact Signing. A `windows.signing` section

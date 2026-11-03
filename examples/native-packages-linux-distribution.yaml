@@ -43,6 +43,13 @@ flatpak:
     - --socket=fallback-x11
     - --share=ipc
     - --device=dri
+  # publish --to flatpak writes a signed repository users add with the
+  # .flatpakref beside it. Not Flathub.
+  repository:
+    directory: ../example-site/flatpak
+    url: https://example.org/flatpak
+    title: Example App
+    signing_key: 0123456789ABCDEF0123456789ABCDEF01234567
 # A strictly confined snap sees only its base's libraries and its own files.
 snap:
   base: core24
@@ -55,3 +62,15 @@ snap:
       plugs: [wayland, x11, opengl, desktop]
   store:
     channels: [stable]
+# publish --to apt,dnf writes signed repositories into a static site checkout,
+# with the key from NATIVE_PACKAGES_GPG_KEY or your GnuPG agent.
+apt:
+  directory: ../example-site/apt
+  url: https://example.org/apt
+  signing_key: 0123456789ABCDEF0123456789ABCDEF01234567
+  keep: 3
+dnf:
+  directory: ../example-site/rpm
+  url: https://example.org/rpm
+  signing_key: 0123456789ABCDEF0123456789ABCDEF01234567
+  keep: 3

@@ -13,7 +13,7 @@ module NativePackages
   class Build
     include Support
     # Destinations signed with the OpenPGP key from the environment.
-    HOSTED = %w[apt dnf].freeze
+    HOSTED = %w[apt dnf flatpak].freeze
     attr_reader :configuration, :root, :project
 
     def initialize(configuration)
@@ -442,6 +442,8 @@ module NativePackages
           AptRepository.new(configuration).publish(packages(manifest, output, "deb"), **signing)
         elsif destination == "dnf"
           DnfRepository.new(configuration).publish(packages(manifest, output, "rpm"), **signing)
+        elsif destination == "flatpak"
+          FlatpakRepository.new(configuration).publish(packages(manifest, output, "flatpak"), **signing)
         elsif destination == "snapcraft"
           Snap.new(configuration).publish(packages(manifest, output, "snap"))
         else
