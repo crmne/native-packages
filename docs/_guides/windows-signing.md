@@ -150,7 +150,7 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '4.0'
-      - run: gem install native-packages --version 0.11.0 --no-document
+      - run: gem install native-packages --version 0.12.0 --no-document
       - run: cargo build --locked --release --target x86_64-pc-windows-msvc
       - name: Sign in to Azure for code signing
         if: vars.AZURE_SIGNING_PROFILE != ''

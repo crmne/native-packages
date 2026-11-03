@@ -3,7 +3,7 @@
 # packaging/org.example.App.metainfo.xml before building.
 schema: 1
 tool:
-  version: '0.11.0'
+  version: '0.12.0'
   nfpm: '2.47.0'
 nfpm:
   name: example-app
