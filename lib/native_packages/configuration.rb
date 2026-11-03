@@ -4,6 +4,7 @@ require_relative "project"
 require_relative "appimage"
 require_relative "flatpak"
 require_relative "snap"
+require_relative "apt_repository"
 require_relative "windows_signing"
 
 module NativePackages
@@ -14,11 +15,11 @@ module NativePackages
     # without nFPM.
     IMAGE_FORMATS = %w[appimage flatpak snap].freeze
     # Publish destinations besides the configured downstream repositories.
-    DESTINATIONS = %w[github snapcraft].freeze
+    DESTINATIONS = %w[github snapcraft apt].freeze
     FORMATS = (%w[deb rpm archlinux apk ipk msix srpm appimage flatpak snap] + NATIVE_FORMATS).freeze
     NFPM_VERSION = "2.47.0"
     NAMES = %w[native-packages.yaml native-packages.yml].freeze
-    KEYS = %w[schema tool nfpm targets release assets templates repositories revisions libraries version_file version_section windows flatpak snap].freeze
+    KEYS = %w[schema tool nfpm targets release assets templates repositories revisions libraries version_file version_section windows flatpak snap apt].freeze
     attr_reader :root, :path, :data
 
     def self.discover(root, explicit = nil)
@@ -186,6 +187,7 @@ module NativePackages
       WindowsSigning.validate(data)
       Flatpak.validate(data)
       Snap.validate(data)
+      AptRepository.validate(data)
       project.repositories
       true
     end

@@ -19,6 +19,15 @@
   the build's snaps with `snapcraft upload --release` to
   `snap.store.channels`, using `SNAPCRAFT_STORE_CREDENTIALS`.
 
+- Publish a signed APT repository with `publish --to apt`. An `apt` section
+  names the directory to write (such as a GitHub Pages checkout), the URL it
+  is served at, the signing key's fingerprint and how many versions to keep.
+  The build's DEB packages go into `pool/`, and native-packages writes
+  `dists/` (`Packages`, `Release`, `InRelease`, `Release.gpg`) itself,
+  with the public key and a deb822 `.sources` file for users. The key comes
+  from `NATIVE_PACKAGES_GPG_KEY` or the user's GnuPG, and every signature is
+  checked against the configured fingerprint.
+
 ## 0.11.0 (2026-10-26)
 
 - Sign Windows code with Azure Artifact Signing. A `windows.signing` section

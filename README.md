@@ -69,6 +69,7 @@ Start with [getting started](docs/_guides/getting-started.md).
 - [Apple signing and notarization](docs/_guides/apple-notarization.md) — prepare macOS downloads for distribution.
 - [Windows code signing](docs/_guides/windows-signing.md): sign Windows executables and installers with Azure Artifact Signing.
 - [Release signatures and attestations](docs/_guides/release-signing.md): authorize updater downloads and identify their build workflow.
+- [Hosted package repositories](docs/_guides/hosted-repositories.md): publish signed repositories that users update through their package manager.
 - [AUR, Homebrew, and other repositories](docs/_guides/distribution-recipes.md) — generate and publish recipes.
 - [Omarchy packages](docs/_guides/omarchy.md): write a first Omarchy recipe that Omarchy's bot then keeps updated.
 

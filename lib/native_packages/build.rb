@@ -12,6 +12,8 @@ require_relative "snap"
 module NativePackages
   class Build
     include Support
+    # Destinations signed with the OpenPGP key from the environment.
+    HOSTED = %w[apt].freeze
     attr_reader :configuration, :root, :project
 
     def initialize(configuration)
@@ -422,6 +424,8 @@ module NativePackages
         marked = capture("gh", "release", "view", "v#{manifest.fetch('version')}", "--repo", project.repository, "--json", "isPrerelease", "--jq", ".isPrerelease")
         raise Error, "destination release must already be marked prerelease" unless marked == "true"
       end
+      # Read once: the signing key leaves the environment when it is read.
+      signing = OpenPGP.environment unless (destinations & HOSTED).empty?
       destinations.each do |destination|
         if destination == "github"
           paths = manifest.fetch("packages").flat_map { |entry| [entry.fetch("path"), entry["zsync"]].compact.map { |path| output / path } }
@@ -434,6 +438,8 @@ module NativePackages
             write(checksums, paths.map { |path| "#{sha256(path)}  #{path.basename}\n" }.join)
             run "gh", "release", "upload", "v#{manifest.fetch('version')}", *paths, checksums, "--repo", project.repository, "--clobber"
           end
+        elsif destination == "apt"
+          AptRepository.new(configuration).publish(packages(manifest, output, "deb"), **signing)
         elsif destination == "snapcraft"
           Snap.new(configuration).publish(packages(manifest, output, "snap"))
         else

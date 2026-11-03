@@ -278,9 +278,11 @@ An Arch package file and an AUR recipe are separate outputs: the former can
 be installed directly; the latter tells Arch tooling how to obtain and package
 your app.
 
-There is no Flatpak or Snap build/publication adapter, no NSIS adapter, and no
-hosted APT/DNF index service. Keep those workflows in your app's release
-process if you need them.
+native-packages can also write a signed APT repository from your DEB
+packages, served as static files; see
+[Hosted package repositories](../_guides/hosted-repositories.md). There is no
+NSIS adapter and no hosted DNF repository. Keep those workflows in your app's
+release process if you need them.
 
 ## What validation establishes
 

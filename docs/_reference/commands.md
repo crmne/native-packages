@@ -97,8 +97,9 @@ native-packages publish --from dist/linux --to github --target linux-amd64
 ```
 
 `--from` selects the build directory; `--to` lists destinations separated by
-commas. `github` uploads release assets. Other names select entries or groups
-in `repositories`.
+commas. `github` uploads release assets, `snapcraft` uploads snaps to the
+Snap Store, and `apt` writes the signed APT repository configured under
+`apt`. Other names select entries or groups in `repositories`.
 
 The build must be complete and its recorded files unmodified. Repeated
 `--target` options require exactly those targets, with all their formats.
