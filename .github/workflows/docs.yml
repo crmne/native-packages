@@ -39,7 +39,7 @@ jobs:
       - name: Plan IndexNow submission
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: ruby ../.github/scripts/indexnow.rb plan _site "$RUNNER_TEMP/indexnow.json"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         with:
           name: indexnow
@@ -74,7 +74,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           sparse-checkout: .github/scripts
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: indexnow
       - name: Submit changed URLs to IndexNow
