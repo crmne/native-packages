@@ -165,7 +165,7 @@ PLATFORMS
 
 DEPENDENCIES
   jekyll-relative-links (~> 0.7)
-  jekyll-vitepress-theme (= 1.11.1)
+  jekyll-vitepress-theme
   webrick (~> 1.9)
 
 CHECKSUMS
