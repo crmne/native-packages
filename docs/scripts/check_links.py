@@ -38,13 +38,19 @@ checked = 0
 if not pages:
     raise SystemExit(f"No HTML pages found in {root}")
 
-search = json.loads((root / "search.json").read_text())
-if not isinstance(search, list) or not search:
-    raise SystemExit("Search index must contain documentation entries")
-for entry in search:
-    if not all(isinstance(entry.get(key), str) and entry[key] for key in ("title", "url")) or not isinstance(entry.get("content"), str):
-        raise SystemExit(f"Invalid search entry: {entry}")
-    pages[root / "index.html"].links.append(entry["url"])
+# A versioned site has a search index per version, such as next/search.json.
+search_entries = 0
+for index in sorted(root.rglob("search.json")):
+    search = json.loads(index.read_text())
+    if not isinstance(search, list) or not search:
+        raise SystemExit(f"{index.relative_to(root)} must contain documentation entries")
+    for entry in search:
+        if not all(isinstance(entry.get(key), str) and entry[key] for key in ("title", "url")) or not isinstance(entry.get("content"), str):
+            raise SystemExit(f"Invalid search entry in {index.relative_to(root)}: {entry}")
+        pages[root / "index.html"].links.append(entry["url"])
+    search_entries += len(search)
+if not search_entries:
+    raise SystemExit(f"No search.json found in {root}")
 
 for path, page in pages.items():
     page_url = baseurl + "/" + path.relative_to(root).as_posix()
@@ -74,4 +80,4 @@ for path, page in pages.items():
 
 if errors:
     raise SystemExit("\n".join(sorted(set(errors))))
-print(f"Checked {checked} local links and assets across {len(pages)} HTML pages and {len(search)} search entries.")
+print(f"Checked {checked} local links and assets across {len(pages)} HTML pages and {search_entries} search entries.")

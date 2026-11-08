@@ -4,6 +4,7 @@ url: https://native-packages.dev
 baseurl: ""
 lang: en
 timezone: UTC
+strict_front_matter: true
 logo: /assets/images/logo.svg
 
 theme: jekyll-vitepress-theme
@@ -42,6 +43,10 @@ defaults:
       render_with_liquid: false
 
 jekyll_vitepress:
+  versions:
+    next: true
+  build:
+    after_assemble: python3 scripts/check_links.py "$VITEPRESS_SITE" --baseurl "$VITEPRESS_VERSION_BASEURL"
   seo:
     image:
       path: /assets/images/launch-film-poster.jpg
