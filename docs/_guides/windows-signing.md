@@ -1,6 +1,8 @@
 ---
 title: Windows code signing
-description: Sign Windows executables and installers with Azure Artifact Signing, from GitHub Actions through OIDC, with no stored secret.
+seo:
+  title: "Windows code signing: Azure Artifact Signing"
+description: Sign Windows executables and installers with Azure Artifact Signing (formerly Trusted Signing) from GitHub Actions through OIDC, with no stored secret.
 nav_order: 7
 ---
 

@@ -1,5 +1,7 @@
 ---
 title: Getting started
+seo:
+  title: "Getting started: build a DEB and RPM package"
 description: Install native-packages and build a DEB and RPM from a compiled Linux application.
 nav_order: 1
 ---

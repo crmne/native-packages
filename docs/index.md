@@ -1,6 +1,8 @@
 ---
 layout: home
 title: native-packages
+seo:
+  title: DEB, RPM, AppImage, DMG and MSI from one config
 description: Turn your built application into Linux packages, macOS disk images, and Windows installers. Publish releases from one configuration.
 permalink: /
 hero:

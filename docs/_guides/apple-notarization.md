@@ -1,5 +1,7 @@
 ---
 title: Apple signing and notarization
+seo:
+  title: Sign and notarize macOS apps and DMGs
 description: Configure Apple credentials, automatically sign and notarize DMGs, and prepare portable macOS archives.
 nav_order: 6
 ---

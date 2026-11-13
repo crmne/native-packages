@@ -1,5 +1,7 @@
 ---
 title: macOS and Windows installers
+seo:
+  title: DMG, MSI and Inno Setup installers
 description: Connect your DMG, MSI or Inno Setup script to the same build and publication process as your Linux packages.
 nav_order: 5
 ---
