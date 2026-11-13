@@ -102,3 +102,4 @@ exclude:
   - platforms.md
   - native-recipes.md
   - apple-notarization.md
+  - research
